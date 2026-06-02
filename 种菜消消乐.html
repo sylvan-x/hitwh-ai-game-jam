@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>菜园攻防战 · 消消乐种菜 · 抵御宠物突袭</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #1e4a2f 0%, #0a2f1a 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Quicksand', 'Poppins', sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .game-hub {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: rgba(35, 28, 18, 0.5);
+            backdrop-filter: blur(4px);
+            border-radius: 2.5rem;
+            padding: 1.2rem;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+            border: 1px solid #e7c894;
+        }
+
+        .farm-dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+        }
+
+        /* 消消乐区域 */
+        .match-zone {
+            flex: 2;
+            min-width: 320px;
+            background: #2c6e3ccc;
+            border-radius: 2rem;
+            padding: 1rem;
+            backdrop-filter: blur(3px);
+        }
+
+        .match-header {
+            text-align: center;
+            color: #fff0bf;
+            text-shadow: 2px 2px 0 #6b3f1c;
+            font-size: 1.6rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .match-board {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            background: #527a3b;
+            padding: 16px;
+            border-radius: 2rem;
+            box-shadow: inset 0 0 0 3px #efcd91;
+        }
+
+        .gem {
+            aspect-ratio: 1 / 1;
+            background: radial-gradient(circle at 30% 35%, #fff2bb, #ffe0a3);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: 0.08s linear;
+            box-shadow: 0 6px 0 #856e42;
+            border: 2px solid #ffefb0;
+        }
+
+        .gem.selected {
+            box-shadow: 0 0 0 3px gold, 0 0 0 6px #ffd966;
+            transform: scale(0.97);
+        }
+
+        /* 右侧主区域 */
+        .right-panel {
+            flex: 3;
+            min-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* 菜园全貌 + 防御状态 */
+        .garden-masterpiece {
+            background: #4d3822cc;
+            border-radius: 2rem;
+            padding: 1rem;
+            backdrop-filter: blur(4px);
+            position: relative;
+        }
+
+        .garden-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            color: #ffefb0;
+            font-weight: bold;
+        }
+
+        .garden-grid-full {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            background: #7da064;
+            border-radius: 2rem;
+            padding: 18px;
+            border: 3px solid #ebc48e;
+            box-shadow: inset 0 0 0 2px #ffffcc, 0 8px 18px black;
+        }
+
+        .plot-card {
+            background: #b87c48;
+            background-image: radial-gradient(circle at 20% 30%, #dba562, #8b5a2b);
+            border-radius: 1.2rem;
+            aspect-ratio: 1 / 0.9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: 0.1s;
+            box-shadow: inset 0 0 0 3px #ffeaad, 0 6px 10px black;
+            color: #fff7e0;
+            text-shadow: 1px 1px 0 #392b17;
+            gap: 6px;
+            position: relative;
+        }
+
+        .plot-card.under-attack {
+            animation: shakeWarning 0.3s infinite;
+            border: 2px solid #ff4444;
+            box-shadow: 0 0 0 2px red;
+        }
+
+        @keyframes shakeWarning {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+            100% { transform: translateX(0); }
+        }
+
+        .defense-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #2c2c2c;
+            border-radius: 30px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: gold;
+        }
+
+        .seed-bazaar {
+            background: #2f2a1f;
+            border-radius: 2rem;
+            padding: 8px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .seed-item {
+            background: #6b4a2e;
+            padding: 4px 10px;
+            border-radius: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #fff1b5;
+        }
+
+        /* 防御道具栏 */
+        .defense-shop {
+            background: #2c4322cc;
+            border-radius: 1.5rem;
+            padding: 8px;
+            margin-top: 6px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .defense-item {
+            background: #f5bc70;
+            border-radius: 2rem;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 动物区 */
+        .zoo-area {
+            background: #352614dd;
+            border-radius: 1.5rem;
+            padding: 12px;
+        }
+
+        .animal-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .animal-card {
+            background: #c28a5c;
+            border-radius: 1rem;
+            padding: 6px;
+            text-align: center;
+            flex: 1;
+            min-width: 80px;
+            box-shadow: 0 4px 0 #643f20;
+        }
+
+        .feed-btn {
+            background: #f5bc70;
+            border: none;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            padding: 4px;
+            margin-top: 5px;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        /* 好友&突袭栏 */
+        .friends-sidebar {
+            background: #2c4322cc;
+            border-radius: 2rem;
+            padding: 1rem;
+            width: 260px;
+            flex-shrink: 0;
+        }
+
+        .friends-title {
+            font-size: 1.3rem;
+            color: #ffe5a3;
+            text-align: center;
+        }
+
+        .friend-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .friend-card {
+            background: #5f4a2e;
+            border-radius: 1.5rem;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            border: 1px solid #efcd91;
+        }
+
+        .attack-alert {
+            background: #aa2e2e;
+            border-radius: 1rem;
+            padding: 8px;
+            margin-top: 10px;
+            text-align: center;
+            color: #ffd966;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            100% { opacity: 1; background: #cc3b3b; }
+        }
+
+        .info-message {
+            background: #1a2c0ee0;
+            border-radius: 2rem;
+            padding: 6px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #f6f3c9;
+            margin-top: 6px;
+        }
+
+        button {
+            background: #f7cf8c;
+            border: none;
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 60px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="game-hub">
+    <div class="farm-dashboard">
+        <!-- 消消乐 -->
+        <div class="match-zone">
+            <div class="match-header">🍬 消消乐·得种子 🍬</div>
+            <div class="match-board" id="matchBoard"></div>
+            <div class="info-message" id="matchMsg">✨ 交换消除，获得种子，还能获取防御道具 ✨</div>
+        </div>
+
+        <div class="right-panel">
+            <div class="garden-masterpiece">
+                <div class="garden-header">
+                    <span>🏡 我的菜园 (4x3)  🛡️ 抵御偷袭</span>
+                    <span id="nukeDisplay">🧨 原子弹碎片: 0/5</span>
+                </div>
+                <div class="garden-grid-full" id="myGardenGrid"></div>
+                <div class="seed-bazaar" id="seedInventory"></div>
+                <div class="defense-shop" id="defenseShop">
+                    <div class="defense-item" data-defense="scarecrow">🌾 稻草人 (防1次) 🛡️ 消耗2种子</div>
+                    <div class="defense-item" data-defense="fence">🚧 木栅栏 (防2次) 🛡️ 消耗3种子</div>
+                    <div class="defense-item" data-defense="trap">⚡ 捕兽夹 (反击伤害) 🧨 消耗3种子</div>
+                </div>
+            </div>
+
+            <div class="zoo-area">
+                <div>🐓 我的宠物 · 喂食升级得原子弹</div>
+                <div class="animal-list" id="animalList"></div>
+                <div class="info-message" id="feedMsg">🍎 收获蔬果喂养宠物，升级可获得原子弹碎片！</div>
+            </div>
+        </div>
+
+        <!-- 好友栏 + 突袭事件 -->
+        <div class="friends-sidebar">
+            <div class="friends-title">👥 邻居农场</div>
+            <div class="friend-list" id="friendList"></div>
+            <div id="attackEventPanel" class="attack-alert" style="display:none;">⚠️ 正在遭受宠物袭击! ⚠️</div>
+            <div class="info-message">💢 邻居的宠物会来偷吃菜园！快用防御道具保护！💢</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---------- 游戏配置 ----------
+    const CROPS = [
+        { id: "carrot", name: "🥕 胡萝卜", icon: "🥕", seedIcon: "🥕", feedValue: 1 },
+        { id: "tomato", name: "🍅 番茄", icon: "🍅", seedIcon: "🍅", feedValue: 1 },
+        { id: "cucumber", name: "🥒 黄瓜", icon: "🥒", seedIcon: "🥒", feedValue: 1 },
+        { id: "eggplant", name: "🍆 茄子", icon: "🍆", seedIcon: "🍆", feedValue: 1 },
+        { id: "corn", name: "🌽 玉米", icon: "🌽", seedIcon: "🌽", feedValue: 1 },
+        { id: "strawberry", name: "🍓 草莓", icon: "🍓", seedIcon: "🍓", feedValue: 2 }
+    ];
+
+    const ANIMALS_DATA = [
+        { id: "pig", name: "🐷 小猪", emoji: "🐷", baseFood: 3, level: 0, maxLevel: 5, feedProgress: 0, reqFood: 3, attackPower: 1 },
+        { id: "sheep", name: "🐑 绵羊", emoji: "🐑", baseFood: 4, level: 0, maxLevel: 5, feedProgress: 0, reqFood: 4, attackPower: 1 },
+        { id: "cow", name: "🐮 奶牛", emoji: "🐮", baseFood: 5, level: 0, maxLevel: 5, feedProgress: 0, reqFood: 5, attackPower: 2 },
+        { id: "chicken", name: "🐔 母鸡", emoji: "🐔", baseFood: 2, level: 0, maxLevel: 5, feedProgress: 0, reqFood: 2, attackPower: 1 }
+    ];
+
+    // 我的数据
+    let myProfile = {
+        seedInventory: {},
+        gardenPlots: [],     // 12个格子
+        harvestedFruits: {},
+        animals: [],
+        nukeShards: 0,
+        defenses: []        // 每个格子防御道具 { type, durability, plotIndex }
+    };
+
+    // 好友数据（每个好友会派宠物袭击）
+    let friendsData = [];
+
+    // 突袭系统: 当前活跃的袭击 (袭击者, 目标格子索引)
+    let activeAttack = null;   // { friendId, attackerAnimal, targetPlotIndex, remainingTurns, damageDone }
+    let attackInterval = null;
+
+    // 消消乐
+    const ROWS = 6, COLS = 6;
+    let board = [];
+    let selectedRow = null, selectedCol = null;
+    let isProcessing = false;
+
+    // 辅助函数
+    function getCropById(id) { return CROPS.find(c => c.id === id); }
+    function getIconByCropId(cropId) { let c = getCropById(cropId); return c ? c.icon : "🍎"; }
+
+    // 初始化我的数据
+    function initMyData() {
+        CROPS.forEach(c => { myProfile.seedInventory[c.id] = (c.id === "strawberry") ? 2 : 4; });
+        myProfile.gardenPlots = [];
+        for (let i = 0; i < 12; i++) {
+            myProfile.gardenPlots.push({ cropId: null, isPlanted: false, isGrown: false, growTimer: null });
+        }
+        myProfile.harvestedFruits = {};
+        CROPS.forEach(c => { myProfile.harvestedFruits[c.id] = 0; });
+        myProfile.animals = ANIMALS_DATA.map(a => ({ ...a, feedProgress: 0, level: 0, reqFood: a.baseFood }));
+        myProfile.nukeShards = 0;
+        myProfile.defenses = [];
+    }
+
+    // 生成好友 (邻居宠物会来袭击)
+    function initFriends() {
+        friendsData = [];
+        const names = ["🐺 暴躁老李", "🦊 红狐园主", "🐗 野猪骑士"];
+        for (let i = 0; i < 3; i++) {
+            // 每个好友有1只攻击宠物
+            const attackPet = { ...ANIMALS_DATA[Math.floor(Math.random() * ANIMALS_DATA.length)] };
+            attackPet.level = Math.floor(Math.random() * 3) + 1;
+            attackPet.attackPower = attackPet.attackPower + Math.floor(attackPet.level / 2);
+            friendsData.push({
+                id: i,
+                name: names[i],
+                attackPet: attackPet,
+                // 简单展示他们菜园（仅装饰）
+                gardenPreview: "🌿🌾"
+            });
+        }
+    }
+
+    // 随机触发袭击 (每个好友有几率派宠物)
+    function tryTriggerAttack() {
+        if (activeAttack) return; // 已有袭击未处理
+        // 30%概率触发袭击，随机选一个好友
+        if (Math.random() < 0.35) {
+            const randomFriend = friendsData[Math.floor(Math.random() * friendsData.length)];
+            // 挑选一个我方存活且有作物的格子作为目标
+            let availablePlots = [];
+            for (let i = 0; i < myProfile.gardenPlots.length; i++) {
+                let p = myProfile.gardenPlots[i];
+                if (p.isPlanted && p.isGrown) availablePlots.push(i);
+            }
+            if (availablePlots.length === 0) return;
+            const targetPlot = availablePlots[Math.floor(Math.random() * availablePlots.length)];
+            const pet = randomFriend.attackPet;
+            activeAttack = {
+                friendId: randomFriend.id,
+                attackerName: randomFriend.name,
+                petName: `${pet.emoji} ${pet.name} Lv.${pet.level}`,
+                targetPlotIndex: targetPlot,
+                remainingAttacks: Math.max(1, Math.floor(pet.attackPower)),
+                damageDealt: 0
+            };
+            showMsg('feedMsg', `⚠️ 警告！${randomFriend.name} 的${pet.emoji}正在袭击你的菜园！快使用防御道具！`, 3000);
+            document.getElementById('attackEventPanel').style.display = 'block';
+            renderCurrentGarden(); // 高亮受攻击地块
+        }
+    }
+
+    // 处理防御: 消耗种子购买防御道具并布置在被攻击的地块
+    function buyDefense(type) {
+        if (!activeAttack) {
+            showMsg('feedMsg', '🌿 暂时没有袭击，可提前布置防御。点击地块布置稻草人/栅栏！', 1500);
+            return;
+        }
+        const targetIdx = activeAttack.targetPlotIndex;
+        let costSeeds = 0;
+        let defenseObj = null;
+        if (type === 'scarecrow') { costSeeds = 2; defenseObj = { type: 'scarecrow', durability: 1, plotIndex: targetIdx, name: '🌾稻草人' }; }
+        else if (type === 'fence') { costSeeds = 3; defenseObj = { type: 'fence', durability: 2, plotIndex: targetIdx, name: '🚧栅栏' }; }
+        else if (type === 'trap') { costSeeds = 3; defenseObj = { type: 'trap', durability: 1, plotIndex: targetIdx, name: '⚡捕兽夹', counter: true }; }
+
+        // 检查是否已经有防御
+        const existing = myProfile.defenses.find(d => d.plotIndex === targetIdx);
+        if (existing) { showMsg('feedMsg', '该地块已有防御！', 1000); return; }
+
+        // 消耗种子（任意种子，平均消耗）
+        let totalSeeds = Object.values(myProfile.seedInventory).reduce((a,b)=>a+b,0);
+        if (totalSeeds < costSeeds) { showMsg('feedMsg', `种子不足！需要${costSeeds}个种子`, 1000); return; }
+        let need = costSeeds;
+        for (let key in myProfile.seedInventory) {
+            if (need <= 0) break;
+            let take = Math.min(myProfile.seedInventory[key], need);
+            myProfile.seedInventory[key] -= take;
+            need -= take;
+        }
+        myProfile.defenses.push(defenseObj);
+        updateSeedUI();
+        // 反击/阻止袭击判定
+        if (defenseObj.type === 'trap') {
+            // 捕兽夹立即反击，驱赶袭击者
+            showMsg('feedMsg', `💥 捕兽夹触发！击退了${activeAttack.attackerName}的宠物！`, 2000);
+            clearAttack();
+            renderCurrentGarden();
+            return;
+        } else {
+            showMsg('feedMsg', `🛡️ 布置${defenseObj.name}，防御力提升！`, 1200);
+        }
+        renderCurrentGarden();
+    }
+
+    // 处理袭击伤害（每隔几秒扣减耐久并破坏作物）
+    function applyAttackDamage() {
+        if (!activeAttack) return;
+        const targetIdx = activeAttack.targetPlotIndex;
+        const plot = myProfile.gardenPlots[targetIdx];
+        if (!plot || !plot.isPlanted || !plot.isGrown) {
+            // 目标没了，袭击结束
+            clearAttack();
+            renderCurrentGarden();
+            return;
+        }
+        // 检查防御
+        const defenseHere = myProfile.defenses.find(d => d.plotIndex === targetIdx);
+        if (defenseHere) {
+            defenseHere.durability--;
+            showMsg('feedMsg', `🛡️ ${defenseHere.name} 抵挡了一次攻击！剩余耐久${defenseHere.durability}`, 1000);
+            if (defenseHere.durability <= 0) {
+                myProfile.defenses = myProfile.defenses.filter(d => d !== defenseHere);
+                showMsg('feedMsg', `⚠️ 防御被摧毁了！`, 1000);
+            }
+            // 扣除一次袭击次数
+            activeAttack.remainingAttacks--;
+            if (activeAttack.remainingAttacks <= 0) {
+                showMsg('feedMsg', `🎉 成功抵御了袭击！宠物逃走了！`, 1500);
+                clearAttack();
+                renderCurrentGarden();
+                return;
+            }
+            renderCurrentGarden();
+            return;
+        }
+        // 没有防御，作物被破坏！
+        if (plot.isGrown && plot.isPlanted) {
+            // 作物被毁
+            if (plot.growTimer) clearTimeout(plot.growTimer);
+            const lostCrop = getCropById(plot.cropId);
+            myProfile.gardenPlots[targetIdx] = { cropId: null, isPlanted: false, isGrown: false, growTimer: null };
+            showMsg('feedMsg', `💔 天哪！${activeAttack.attackerName}的宠物摧毁了你的${lostCrop?.icon || '作物'}！`, 2000);
+            activeAttack.remainingAttacks--;
+            if (activeAttack.remainingAttacks <= 0) {
+                clearAttack();
+            } else {
+                // 重新寻找新目标继续破坏
+                let newTarget = -1;
+                for (let i = 0; i < myProfile.gardenPlots.length; i++) {
+                    let p = myProfile.gardenPlots[i];
+                    if (p.isPlanted && p.isGrown && i !== targetIdx) { newTarget = i; break; }
+                }
+                if (newTarget !== -1) {
+                    activeAttack.targetPlotIndex = newTarget;
+                    showMsg('feedMsg', `🐾 宠物转向另一个作物！快布置防御！`, 1500);
+                } else {
+                    showMsg('feedMsg', `😤 没有更多作物可破坏，袭击结束`, 1000);
+                    clearAttack();
+                }
+            }
+            renderCurrentGarden();
+        } else {
+            clearAttack();
+        }
+    }
+
+    function clearAttack() {
+        activeAttack = null;
+        document.getElementById('attackEventPanel').style.display = 'none';
+        if (attackInterval) clearInterval(attackInterval);
+        attackInterval = null;
+        startAttackTimer();
+    }
+
+    function startAttackTimer() {
+        if (attackInterval) clearInterval(attackInterval);
+        attackInterval = setInterval(() => {
+            if (activeAttack) applyAttackDamage();
+            else {
+                // 每隔12秒尝试触发新袭击
+                tryTriggerAttack();
+            }
+        }, 8000);
+    }
+
+    // 渲染菜园（支持高亮受攻击格子）
+    function renderCurrentGarden() {
+        const container = document.getElementById('myGardenGrid');
+        container.innerHTML = '';
+        for (let i = 0; i < myProfile.gardenPlots.length; i++) {
+            const plot = myProfile.gardenPlots[i];
+            const tile = document.createElement('div');
+            tile.className = 'plot-card';
+            if (!plot.isPlanted) tile.classList.add('empty');
+            if (activeAttack && activeAttack.targetPlotIndex === i) tile.classList.add('under-attack');
+            // 显示防御标志
+            const defHere = myProfile.defenses.find(d => d.plotIndex === i);
+            let defenseHtml = '';
+            if (defHere) defenseHtml = `<div class="defense-badge">${defHere.name} ❤️${defHere.durability}</div>`;
+
+            if (!plot.isPlanted) {
+                tile.innerHTML = `🌱<span>空地</span>${defenseHtml}`;
+            } else if (plot.isPlanted && !plot.isGrown) {
+                const crop = getCropById(plot.cropId);
+                tile.innerHTML = `${crop?.icon || '🌿'}<span>⏳生长中</span>${defenseHtml}`;
+            } else if (plot.isGrown) {
+                const crop = getCropById(plot.cropId);
+                tile.innerHTML = `${crop?.icon || '🎁'}<span>✨成熟✨</span>${defenseHtml}`;
+            }
+            tile.addEventListener('click', (function(idx) { return () => handleMyGardenClick(idx); })(i));
+            container.appendChild(tile);
+        }
+        updateSeedUI();
+        document.getElementById('nukeDisplay').innerHTML = `🧨 原子弹碎片: ${myProfile.nukeShards}/5`;
+        renderMyAnimals();
+    }
+
+    function handleMyGardenClick(idx) {
+        const plot = myProfile.gardenPlots[idx];
+        if (!plot.isPlanted) {
+            const available = CROPS.filter(c => (myProfile.seedInventory[c.id] || 0) > 0);
+            if (available.length === 0) { showMsg('matchMsg', '❌ 无种子，玩消消乐获取'); return; }
+            let menu = "🌾 选择种子:\n";
+            available.forEach((c, i) => { menu += `${i+1}. ${c.icon} ${c.name} (${myProfile.seedInventory[c.id]}个)\n`; });
+            const ans = prompt(menu, "1");
+            let choice = parseInt(ans) - 1;
+            if (isNaN(choice) || choice < 0 || choice >= available.length) return;
+            const selectedCrop = available[choice];
+            myProfile.seedInventory[selectedCrop.id]--;
+            updateSeedUI();
+            plot.isPlanted = true;
+            plot.cropId = selectedCrop.id;
+            plot.isGrown = false;
+            if (plot.growTimer) clearTimeout(plot.growTimer);
+            plot.growTimer = setTimeout(() => {
+                if (myProfile.gardenPlots[idx] && myProfile.gardenPlots[idx].isPlanted) {
+                    myProfile.gardenPlots[idx].isGrown = true;
+                    renderCurrentGarden();
+                    showMsg('feedMsg', `🌾 ${selectedCrop.icon} 成熟啦！收获可喂动物~`, 1500);
+                }
+            }, 10000);
+            renderCurrentGarden();
+            return;
+        }
+        if (plot.isPlanted && plot.isGrown) {
+            const crop = getCropById(plot.cropId);
+            const gain = crop.feedValue;
+            myProfile.harvestedFruits[crop.id] = (myProfile.harvestedFruits[crop.id] || 0) + gain;
+            if (plot.growTimer) clearTimeout(plot.growTimer);
+            myProfile.gardenPlots[idx] = { cropId: null, isPlanted: false, isGrown: false, growTimer: null };
+            renderCurrentGarden();
+            showMsg('feedMsg', `🎉 收获 +${gain} ${crop.icon}！可用于喂养宠物`, 1200);
+            return;
+        }
+        if (plot.isPlanted && !plot.isGrown) showMsg('matchMsg', '⏳ 生长中...');
+    }
+
+    function renderMyAnimals() {
+        const container = document.getElementById('animalList');
+        container.innerHTML = '';
+        myProfile.animals.forEach(animal => {
+            const card = document.createElement('div');
+            card.className = 'animal-card';
+            card.innerHTML = `
+                <div>${animal.emoji}</div>
+                <div>${animal.name} Lv.${animal.level}</div>
+                <div>🍎 ${animal.feedProgress}/${animal.reqFood}</div>
+                <button class="feed-btn" data-id="${animal.id}">🍽️ 喂食</button>
+            `;
+            container.appendChild(card);
+        });
+        document.querySelectorAll('.feed-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = btn.getAttribute('data-id');
+                feedMyAnimal(id);
+            });
+        });
+    }
+
+    function feedMyAnimal(animalId) {
+        const animal = myProfile.animals.find(a => a.id === animalId);
+        let totalFruits = Object.values(myProfile.harvestedFruits).reduce((a,b)=>a+b,0);
+        if (totalFruits <= 0) { showMsg('feedMsg', '🥗 没有收获的蔬果！'); return; }
+        for (let key in myProfile.harvestedFruits) {
+            if (myProfile.harvestedFruits[key] > 0) { myProfile.harvestedFruits[key]--; break; }
+        }
+        animal.feedProgress++;
+        if (animal.feedProgress >= animal.reqFood) {
+            animal.level++;
+            animal.feedProgress = 0;
+            animal.reqFood = Math.floor(animal.reqFood * 1.2);
+            if (animal.level >= animal.maxLevel) {
+                myProfile.nukeShards++;
+                showMsg('feedMsg', `💥 ${animal.emoji} 满级！原子弹碎片+1 (${myProfile.nukeShards}/5)`);
+                if (myProfile.nukeShards >= 5) alert("🏆 原子弹组装！农场无敌！胜利！🏆");
+            } else showMsg('feedMsg', `🎉 ${animal.emoji} 升级 Lv.${animal.level}`);
+        } else showMsg('feedMsg', `🍎 喂食成功 ${animal.emoji} 好感↑`);
+        renderCurrentGarden();
+    }
+
+    // 消消乐逻辑精简版（保持获取种子）
+    function initBoard() {
+        let newBoard;
+        do { newBoard = Array(ROWS).fill().map(() => Array(COLS).fill().map(() => CROPS[Math.floor(Math.random()*CROPS.length)].id)); } while (hasMatchOnBoard(newBoard));
+        board = newBoard;
+    }
+    function hasMatchOnBoard(b) { for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) { let id=b[r][c]; if(c+2<COLS && b[r][c+1]===id && b[r][c+2]===id) return true; if(r+2<ROWS && b[r+1][c]===id && b[r+2][c]===id) return true; } return false; }
+    function getAllMatches(b) { let set=new Set(); for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) { let id=b[r][c]; if(!id) continue; let len=1; while(c+len<COLS && b[r][c+len]===id) len++; if(len>=3) for(let i=0;i<len;i++) set.add(`${r},${c+i}`); len=1; while(r+len<ROWS && b[r+len][c]===id) len++; if(len>=3) for(let i=0;i<len;i++) set.add(`${r+i},${c}`); } return set; }
+    function applyGravity(b) { for(let c=0;c<COLS;c++) { let col=[]; for(let r=ROWS-1;r>=0;r--) if(b[r][c]) col.push(b[r][c]); while(col.length<ROWS) col.push(CROPS[Math.floor(Math.random()*CROPS.length)].id); col.reverse(); for(let r=0;r<ROWS;r++) b[r][c]=col[r]; } }
+    async function settleMatchesAndReward(matchSet) { if(matchSet.size===0) return false; let reward=new Map(); for(let coord of matchSet) { let [r,c]=coord.split(',').map(Number); let cropId=board[r][c]; if(cropId) reward.set(cropId,(reward.get(cropId)||0)+1); board[r][c]=null; } for(let [cropId,cnt] of reward.entries()) { let add=Math.max(1,Math.floor(cnt/2)); myProfile.seedInventory[cropId]=(myProfile.seedInventory[cropId]||0)+add; showMsg('matchMsg',`✨ +${add} ${getCropById(cropId)?.icon}种子`,800); } updateSeedUI(); applyGravity(board); renderBoardUI(); await new Promise(r=>setTimeout(r,120)); let newMatches=getAllMatches(board); if(newMatches.size) await settleMatchesAndReward(newMatches); return true; }
+    async function trySwap(r1,c1,r2,c2) { if(isProcessing) return false; let temp=board[r1][c1]; board[r1][c1]=board[r2][c2]; board[r2][c2]=temp; let matches=getAllMatches(board); if(matches.size===0) { temp=board[r1][c1]; board[r1][c1]=board[r2][c2]; board[r2][c2]=temp; return false; } isProcessing=true; renderBoardUI(); await settleMatchesAndReward(matches); isProcessing=false; renderBoardUI(); return true; }
+    function renderBoardUI() { let container=document.getElementById('matchBoard'); container.innerHTML=''; for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) { let gem=document.createElement('div'); gem.className='gem'; if(selectedRow===i && selectedCol===j && !isProcessing) gem.classList.add('selected'); gem.innerHTML=getIconByCropId(board[i][j]); gem.addEventListener('click',(()=>onGemClick(i,j))); container.appendChild(gem); } }
+    async function onGemClick(row,col) { if(isProcessing) return; if(selectedRow===null) { selectedRow=row; selectedCol=col; renderBoardUI(); return; } let dr=Math.abs(selectedRow-row), dc=Math.abs(selectedCol-col); if(dr+dc !== 1) { selectedRow=row; selectedCol=col; renderBoardUI(); return; } await trySwap(selectedRow,selectedCol,row,col); selectedRow=null; selectedCol=null; renderBoardUI(); }
+    function updateSeedUI() { let container=document.getElementById('seedInventory'); container.innerHTML=''; for(let crop of CROPS) { let count=myProfile.seedInventory[crop.id]||0; let div=document.createElement('div'); div.className='seed-item'; div.innerHTML=`${crop.seedIcon} ${crop.name.split(' ')[0]} x ${count}`; container.appendChild(div); } }
+    function showMsg(elId,msg,t=1800){ let el=document.getElementById(elId); if(!el) return; let old=el.innerText; el.innerText=msg; setTimeout(()=>{ if(document.getElementById(elId)) el.innerText=old;},t); }
+
+    // 好友UI
+    function renderFriendsList() {
+        const container = document.getElementById('friendList');
+        container.innerHTML = '';
+        friendsData.forEach(f => {
+            const div = document.createElement('div'); div.className = 'friend-card';
+            div.innerHTML = `<div>👤 ${f.name}</div><div style="font-size:0.7rem;">🐾 ${f.attackPet.emoji} Lv.${f.attackPet.level}</div>`;
+            container.appendChild(div);
+        });
+    }
+
+    // 防御购买监听
+    document.getElementById('defenseShop')?.addEventListener('click', (e) => {
+        let target = e.target.closest('.defense-item');
+        if (target) {
+            let type = target.getAttribute('data-defense');
+            if (type) buyDefense(type);
+        }
+    });
+
+    function initGame() {
+        initMyData();
+        initFriends();
+        initBoard();
+        renderBoardUI();
+        renderCurrentGarden();
+        renderFriendsList();
+        startAttackTimer();
+    }
+    initGame();
+</script>
+</body>
+</html>

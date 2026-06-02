@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔨 打地鼠 - Whack-a-Mole</title>
+    <style>
+        :root {
+            --bg: #87ceeb;
+            --ground: #5a9e3f;
+            --ground-dark: #3d6e2a;
+            --hole-dark: #2a1a0a;
+            --hole-mid: #5c3a1e;
+            --hole-light: #8b5e3c;
+            --wood: #c4946c;
+            --wood-dark: #8b5a3b;
+            --mole-body: #8B5E3C;
+            --mole-belly: #D2A679;
+            --mole-nose: #E8917E;
+            --golden-body: #f4a940;
+            --golden-belly: #ffd580;
+            --bomb-body: #3a3a3a;
+            --bomb-fuse: #e85d3a;
+            --text: #3e2723;
+            --score-pop: #ff6d3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #87ceeb 0%, #b8e4f0 35%, #c8e6c9 35%, #5a9e3f 36%, #4a8a2f 100%);
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' style='font-size:28px'><text y='28'>🔨</text></svg>") 16 28, auto;
+            overflow-x: hidden;
+            padding: 10px;
+        }
+
+        /* 自定义锤子光标在游戏区域 */
+        .game-container.playing .holes-grid {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' style='font-size:34px'><text y='34'>🔨</text></svg>") 20 34, pointer;
+        }
+
+        .game-wrapper {
+            background: linear-gradient(180deg, #f9e4c5 0%, #e8cfa0 100%);
+            border-radius: 28px;
+            padding: 20px 24px 28px;
+            box-shadow:
+                0 10px 40px rgba(0, 0, 0, 0.35),
+                0 0 0 8px #6b3a2a,
+                0 0 0 14px #c4946c,
+                0 0 0 18px #5a2d1a,
+                inset 0 2px 0 rgba(255, 255, 255, 0.25);
+            max-width: 520px;
+            width: 100%;
+            position: relative;
+        }
+
+        /* 装饰螺丝钉 */
+        .game-wrapper::before,
+        .game-wrapper::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: radial-gradient(circle at 40% 35%, #ddd 0%, #888 40%, #555 100%);
+            border-radius: 50%;
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+            z-index: 2;
+            top: 14px;
+        }
+        .game-wrapper::before {
+            left: 16px;
+        }
+        .game-wrapper::after {
+            right: 16px;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .game-title {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #4a2512;
+            text-shadow: 2px 2px 0 #e8cfa0, 3px 3px 0 rgba(0, 0, 0, 0.2);
+            letter-spacing: 2px;
+            line-height: 1.1;
+        }
+        .game-title .icon {
+            display: inline-block;
+            animation: titleBounce 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes titleBounce {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .score-panel {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .score-item {
+            background: #3e2216;
+            color: #ffd580;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 1rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 3px 0 #1a0d06;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 1px;
+            min-width: 70px;
+            justify-content: center;
+        }
+        .score-item.timer {
+            color: #ff9e9e;
+            animation: none;
+        }
+        .score-item.timer.urgent {
+            animation: urgentPulse 0.5s ease-in-out infinite;
+            color: #ff4444;
+            background: #4a1010;
+        }
+        @keyframes urgentPulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 0 20px rgba(255, 50, 50, 0.7), inset 0 2px 4px rgba(0, 0, 0, 0.5);
+            }
+        }
+        .score-value {
+            font-size: 1.4rem;
+            font-weight: 900;
+        }
+
+        .combo-indicator {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ff6d3a;
+            text-align: center;
+            min-height: 22px;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            opacity: 0;
+            transform: translateY(5px);
+        }
+        .combo-indicator.active {
+            opacity: 1;
+            transform: translateY(0);
+            animation: comboGlow 0.4s ease-in-out infinite alternate;
+        }
+        @keyframes comboGlow {
+            0% {
+                text-shadow: 0 0 8px #ff6d3a;
+            }
+            100% {
+                text-shadow: 0 0 20px #ff4400, 0 0 30px #ffaa00;
+            }
+        }
+
+        /* 游戏网格 */
+        .holes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 16px 20px;
+            padding: 16px 8px 6px;
+            position: relative;
+            background: radial-gradient(ellipse at center bottom, #4a8a2f 0%, #5a9e3f 30%, #3d6e2a 100%);
+            border-radius: 24px;
+            box-shadow: inset 0 8px 30px rgba(0, 0, 0, 0.35);
+            margin-bottom: 12px;
+            /* 草地纹理 */
+            background-image:
+                radial-gradient(circle at 25% 80%, #6ab84a 1px, transparent 1px),
+                radial-gradient(circle at 60% 70%, #6ab84a 1.5px, transparent 1.5px),
+                radial-gradient(circle at 80% 85%, #6ab84a 1px, transparent 1px),
+                radial-gradient(circle at 15% 60%, #6ab84a 1.5px, transparent 1.5px),
+                radial-gradient(circle at 70% 55%, #6ab84a 1px, transparent 1px),
+                radial-gradient(ellipse at center bottom, #4a8a2f 0%, #5a9e3f 30%, #3d6e2a 100%);
+        }
+
+        /* 单个洞 */
+        .hole-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            position: relative;
+            height: 120px;
+            /* 洞容器 */;
+        }
+
+        .hole-mound {
+            position: relative;
+            width: 90%;
+            max-width: 130px;
+            height: 115px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        /* 洞的可见部分 - 椭圆形洞口 */
+        .hole-opening {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            height: 40px;
+            background: radial-gradient(ellipse at center, #1a0a04 0%, #2a1508 50%, #3d1e0a 100%);
+            border-radius: 50%;
+            box-shadow:
+                inset 0 6px 15px rgba(0, 0, 0, 0.8),
+                0 4px 8px rgba(0, 0, 0, 0.4),
+                0 1px 0 rgba(255, 255, 255, 0.1);
+            z-index: 3;
+            border: 3px solid #1a0802;
+        }
+
+        /* 地鼠容器 - 用于裁剪 */
+        .mole-container {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 72%;
+            height: 100px;
+            overflow: hidden;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* 地鼠本体 */
+        .mole {
+            position: absolute;
+            bottom: -70px;
+            /* 初始隐藏在地下 */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 70px;
+            background: var(--mole-body);
+            border-radius: 50% 50% 45% 45%;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: bottom 0.12s ease-out, transform 0.12s ease-out;
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.35),
+                inset 0 -8px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1;
+        }
+
+        /* 地鼠弹出状态 */
+        .mole.active {
+            bottom: 5px;
+            animation: molePopUp 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.1);
+        }
+        .mole.hit {
+            bottom: -40px;
+            transform: translateX(-50%) scale(0.8) rotate(15deg);
+            transition: bottom 0.08s ease-in, transform 0.08s ease-in;
+            filter: brightness(1.4);
+        }
+        .mole.missed {
+            bottom: -70px;
+            transition: bottom 0.25s ease-in;
+        }
+
+        @keyframes molePopUp {
+            0% {
+                bottom: -60px;
+                transform: translateX(-50%) scale(0.5);
+            }
+            60% {
+                bottom: 12px;
+                transform: translateX(-50%) scale(1.08);
+            }
+            80% {
+                bottom: 3px;
+                transform: translateX(-50%) scale(0.95);
+            }
+            100% {
+                bottom: 5px;
+                transform: translateX(-50%) scale(1);
+            }
+        }
+
+        /* 地鼠面部特征 */
+        .mole::before {
+            content: '';
+            position: absolute;
+            top: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 34px;
+            height: 26px;
+            background: var(--mole-belly);
+            border-radius: 50%;
+            z-index: 2;
+        }
+        .mole::after {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 10px;
+            background: var(--mole-nose);
+            border-radius: 50%;
+            z-index: 3;
+        }
+
+        /* 地鼠眼睛 */
+        .mole-eyes {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 34px;
+            height: 10px;
+            z-index: 3;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        .mole-eye {
+            width: 9px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        .mole-eye::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 5px;
+            background: #111;
+            border-radius: 50%;
+        }
+
+        /* 地鼠耳朵 */
+        .mole-ears {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 42px;
+            height: 14px;
+            z-index: 0;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+        .mole-ear {
+            width: 13px;
+            height: 13px;
+            background: #6b3a1e;
+            border-radius: 50%;
+            box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 金色地鼠 */
+        .mole.golden {
+            background: var(--golden-body);
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.35),
+                0 0 20px rgba(255, 200, 60, 0.5),
+                inset 0 -8px 12px rgba(0, 0, 0, 0.25);
+            animation: goldenGlow 0.6s ease-in-out infinite alternate;
+        }
+        .mole.golden::before {
+            background: var(--golden-belly);
+        }
+        .mole.golden .mole-ear {
+            background: #d4892a;
+        }
+        @keyframes goldenGlow {
+            0% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 18px rgba(255, 180, 40, 0.5), inset 0 -8px 12px rgba(0, 0, 0, 0.25);
+            }
+            100% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 32px rgba(255, 200, 40, 0.8), 0 0 50px rgba(255, 160, 20, 0.4), inset 0 -8px 12px rgba(0, 0, 0, 0.25);
+            }
+        }
+
+        /* 炸弹 */
+        .mole.bomb {
+            background: var(--bomb-body);
+            border-radius: 42% 42% 48% 48%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 60, 30, 0.5);
+            animation: bombFlicker 0.3s ease-in-out infinite alternate;
+        }
+        .mole.bomb::before {
+            background: #555;
+            width: 20px;
+            height: 20px;
+            top: 18px;
+            border-radius: 50%;
+        }
+        .mole.bomb::after {
+            content: '💥';
+            font-size: 20px;
+            background: none;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            height: auto;
+            z-index: 5;
+            animation: fuseSpark 0.2s ease-in-out infinite alternate;
+        }
+        @keyframes bombFlicker {
+            0% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 8px rgba(255, 60, 30, 0.4);
+            }
+            100% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 22px rgba(255, 40, 10, 0.8);
+            }
+        }
+        @keyframes fuseSpark {
+            0% {
+                opacity: 0.7;
+                transform: translateX(-50%) scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1.2);
+            }
+        }
+        .mole.bomb .mole-ear {
+            background: #444;
+            width: 10px;
+            height: 10px;
+            border-radius: 40%;
+        }
+        .mole.bomb .mole-eyes .mole-eye {
+            background: #ff4444;
+            box-shadow: 0 0 6px #ff0000;
+        }
+        .mole.bomb .mole-eyes .mole-eye::after {
+            background: #fff;
+            width: 3px;
+            height: 3px;
+        }
+
+        /* 分数飘出 */
+        .score-pop {
+            position: absolute;
+            pointer-events: none;
+            font-weight: 900;
+            font-size: 1.4rem;
+            z-index: 20;
+            animation: scoreFloat 0.9s ease-out forwards;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+        }
+        @keyframes scoreFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(0.5);
+            }
+            30% {
+                opacity: 1;
+                transform: translateY(-30px) scale(1.3);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-80px) scale(0.8);
+            }
+        }
+        .score-pop.positive {
+            color: #ffd700;
+        }
+        .score-pop.negative {
+            color: #ff4444;
+        }
+        .score-pop.combo-bonus {
+            color: #ff6d3a;
+            font-size: 1.8rem;
+        }
+
+        /* 粒子效果 */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            z-index: 18;
+            animation: particleBurst 0.5s ease-out forwards;
+        }
+        @keyframes particleBurst {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--dx), var(--dy)) scale(0);
+            }
+        }
+
+        /* 按钮 */
+        .btn-start {
+            display: block;
+            margin: 0 auto;
+            padding: 14px 40px;
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+            color: #fff;
+            background: linear-gradient(180deg, #ff6b3d 0%, #e0451f 100%);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #a02d10, 0 8px 18px rgba(0, 0, 0, 0.3);
+            transition: all 0.1s;
+            text-transform: uppercase;
+            position: relative;
+            z-index: 5;
+        }
+        .btn-start:hover {
+            background: linear-gradient(180deg, #ff8055 0%, #f0502a 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #a02d10, 0 10px 22px rgba(0, 0, 0, 0.35);
+        }
+        .btn-start:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #a02d10, 0 4px 10px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(180deg, #e0552a 0%, #c03a18 100%);
+        }
+        .btn-start.restart {
+            background: linear-gradient(180deg, #4CAF50 0%, #2E7D32 100%);
+            box-shadow: 0 6px 0 #1b5e20, 0 8px 18px rgba(0, 0, 0, 0.3);
+            animation: pulseBtn 1.5s ease-in-out infinite;
+        }
+        @keyframes pulseBtn {
+            0%,
+            100% {
+                box-shadow: 0 6px 0 #1b5e20, 0 8px 18px rgba(0, 0, 0, 0.3);
+            }
+            50% {
+                box-shadow: 0 6px 0 #1b5e20, 0 8px 30px rgba(76, 175, 80, 0.6);
+            }
+        }
+
+        /* 游戏结束覆盖层 */
+        .overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 28px;
+            z-index: 30;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+        .overlay.show {
+            display: flex;
+        }
+        .overlay-text {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 900;
+            text-align: center;
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+        }
+        .overlay-score {
+            color: #ffd700;
+            font-size: 3rem;
+            font-weight: 900;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.7);
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .game-wrapper {
+                padding: 14px 10px 18px;
+                border-radius: 20px;
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 0 0 5px #6b3a2a, 0 0 0 9px #c4946c, 0 0 0 12px #5a2d1a;
+            }
+            .game-title {
+                font-size: 1.4rem;
+            }
+            .holes-grid {
+                gap: 8px 10px;
+                padding: 10px 4px 4px;
+                border-radius: 16px;
+            }
+            .hole-mound {
+                height: 95px;
+                max-width: 100px;
+            }
+            .hole-opening {
+                height: 30px;
+                width: 80%;
+            }
+            .mole-container {
+                height: 80px;
+                width: 65%;
+            }
+            .mole {
+                width: 48px;
+                height: 56px;
+            }
+            .mole-eyes {
+                width: 28px;
+                top: 12px;
+            }
+            .mole-eye {
+                width: 7px;
+                height: 8px;
+            }
+            .mole-eye::after {
+                width: 4px;
+                height: 4px;
+            }
+            .mole::before {
+                width: 28px;
+                height: 22px;
+                top: 17px;
+            }
+            .mole::after {
+                width: 11px;
+                height: 8px;
+                top: 24px;
+            }
+            .mole-ears {
+                width: 34px;
+                top: -6px;
+            }
+            .mole-ear {
+                width: 10px;
+                height: 10px;
+            }
+            .score-item {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+            .score-value {
+                font-size: 1.1rem;
+            }
+            .btn-start {
+                padding: 10px 28px;
+                font-size: 1rem;
+                letter-spacing: 2px;
+            }
+            .mole.active {
+                bottom: 2px;
+            }
+        }
+        @media (max-width: 350px) {
+            .hole-mound {
+                height: 78px;
+                max-width: 80px;
+            }
+            .mole-container {
+                height: 65px;
+                width: 60%;
+            }
+            .mole {
+                width: 38px;
+                height: 46px;
+            }
+            .mole-eyes {
+                width: 22px;
+                top: 9px;
+            }
+            .mole-eye {
+                width: 6px;
+                height: 7px;
+            }
+            .mole::before {
+                width: 22px;
+                height: 17px;
+                top: 13px;
+            }
+            .mole::after {
+                width: 9px;
+                height: 6px;
+                top: 19px;
+            }
+            .mole-ears {
+                width: 28px;
+                top: -5px;
+            }
+            .mole-ear {
+                width: 8px;
+                height: 8px;
+            }
+            .score-item {
+                padding: 5px 8px;
+                font-size: 0.7rem;
+            }
+            .score-value {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper" id="gameWrapper">
+        <!-- 顶部信息 -->
+        <div class="game-header">
+            <div class="game-title">
+                <span class="icon">🔨</span> 打地鼠
+            </div>
+            <div class="score-panel">
+                <div class="score-item">
+                    ⭐ <span class="score-value" id="scoreDisplay">0</span>
+                </div>
+                <div class="score-item timer" id="timerDisplay">
+                    ⏱ <span class="score-value" id="timeDisplay">60</span>s
+                </div>
+            </div>
+        </div>
+        <div class="combo-indicator" id="comboIndicator"></div>
+
+        <!-- 游戏区域 -->
+        <div class="holes-grid" id="holesGrid">
+            <!-- 9个洞由JS动态生成 -->
+        </div>
+
+        <!-- 开始按钮 -->
+        <button class="btn-start" id="btnStart">🔨 开始游戏</button>
+
+        <!-- 结束覆盖层 -->
+        <div class="overlay" id="overlay">
+            <div class="overlay-text">⏰ 游戏结束！</div>
+            <div class="overlay-score" id="overlayScore">0 分</div>
+            <button class="btn-start restart" id="btnRestart">🔄 再来一局</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ============ DOM元素 ============
+            const gameWrapper = document.getElementById('gameWrapper');
+            const holesGrid = document.getElementById('holesGrid');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const timeDisplay = document.getElementById('timeDisplay');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const comboIndicator = document.getElementById('comboIndicator');
+            const btnStart = document.getElementById('btnStart');
+            const overlay = document.getElementById('overlay');
+            const overlayScore = document.getElementById('overlayScore');
+            const btnRestart = document.getElementById('btnRestart');
+
+            // ============ 音频引擎 ============
+            let audioCtx = null;
+
+            function getAudioContext() {
+                if (!audioCtx) {
+                    audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+                }
+                return audioCtx;
+            }
+
+            function playBeep(freq, duration, type = 'square', vol = 0.08) {
+                try {
+                    const ctx = getAudioContext();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.5, ctx.currentTime + duration);
+                    gain.gain.setValueAtTime(vol, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + duration);
+                } catch (e) {
+                    // 静默处理
+                }
+            }
+
+            function sfxHit() { playBeep(800, 0.08, 'square', 0.1);
+                playBeep(1200, 0.04, 'square', 0.05); }
+
+            function sfxGoldenHit() {
+                playBeep(1000, 0.06, 'square', 0.1);
+                playBeep(1500, 0.06, 'triangle', 0.08);
+                playBeep(2000, 0.08, 'sine', 0.06);
+            }
+
+            function sfxBomb() { playBeep(60, 0.3, 'sawtooth', 0.2);
+                playBeep(30, 0.4, 'triangle', 0.15); }
+
+            function sfxMiss() { playBeep(200, 0.15, 'triangle', 0.04); }
+
+            function sfxCombo() { playBeep(1400, 0.05, 'sine', 0.07); }
+
+            function sfxGameEnd() { playBeep(400, 0.3, 'triangle', 0.1);
+                playBeep(200, 0.5, 'sine', 0.08); }
+
+            // ============ 游戏状态 ============
+            const TOTAL_HOLES = 9;
+            const GAME_DURATION = 60; // 秒
+            let score = 0;
+            let timeLeft = GAME_DURATION;
+            let gameActive = false;
+            let gameTimer = null;
+            let spawnTimer = null;
+            let comboCount = 0;
+            let activeMoles = {}; // { holeIndex: { type, timeoutId } }
+            let holeBusy = {}; // 洞是否正在处理中（防止重复点击）
+
+            // 难度参数（动态调整）
+            let spawnInterval = 1400; // 地鼠出现间隔(ms)
+            let moleStayDuration = 1200; // 地鼠停留时间(ms)
+            let maxSimultaneous = 1; // 同时最多几个地鼠
+
+            // ============ 初始化洞 ============
+            function createHoles() {
+                holesGrid.innerHTML = '';
+                for (let i = 0; i < TOTAL_HOLES; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'hole-cell';
+                    cell.setAttribute('data-hole', i);
+
+                    const mound = document.createElement('div');
+                    mound.className = 'hole-mound';
+
+                    // 地鼠容器
+                    const moleContainer = document.createElement('div');
+                    moleContainer.className = 'mole-container';
+
+                    // 地鼠
+                    const mole = document.createElement('div');
+                    mole.className = 'mole';
+                    mole.setAttribute('data-hole', i);
+
+                    // 地鼠耳朵
+                    const ears = document.createElement('div');
+                    ears.className = 'mole-ears';
+                    const earL = document.createElement('div');
+                    earL.className = 'mole-ear';
+                    const earR = document.createElement('div');
+                    earR.className = 'mole-ear';
+                    ears.appendChild(earL);
+                    ears.appendChild(earR);
+                    mole.appendChild(ears);
+
+                    // 地鼠眼睛
+                    const eyes = document.createElement('div');
+                    eyes.className = 'mole-eyes';
+                    const eyeL = document.createElement('div');
+                    eyeL.className = 'mole-eye';
+                    const eyeR = document.createElement('div');
+                    eyeR.className = 'mole-eye';
+                    eyes.appendChild(eyeL);
+                    eyes.appendChild(eyeR);
+                    mole.appendChild(eyes);
+
+                    moleContainer.appendChild(mole);
+
+                    // 洞口
+                    const opening = document.createElement('div');
+                    opening.className = 'hole-opening';
+
+                    mound.appendChild(moleContainer);
+                    mound.appendChild(opening);
+                    cell.appendChild(mound);
+                    holesGrid.appendChild(cell);
+
+                    // 绑定点击事件
+                    mole.addEventListener('pointerdown', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onMoleClick(i, mole, mound);
+                    });
+                    // 防止click重复触发
+                    mole.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                }
+            }
+
+            // ============ 地鼠点击处理 ============
+            function onMoleClick(holeIndex, moleElement, moundElement) {
+                if (!gameActive) return;
+                if (holeBusy[holeIndex]) return;
+                if (!moleElement.classList.contains('active')) return;
+
+                // 标记洞为忙碌，防止重复点击
+                holeBusy[holeIndex] = true;
+
+                const moleData = activeMoles[holeIndex];
+                if (!moleData) {
+                    holeBusy[holeIndex] = false;
+                    return;
+                }
+
+                const moleType = moleData.type;
+                clearTimeout(moleData.timeoutId);
+                delete activeMoles[holeIndex];
+
+                // 击中动画
+                moleElement.classList.remove('active');
+                moleElement.classList.add('hit');
+
+                // 根据类型处理分数
+                let pointsEarned = 0;
+                let popClass = 'positive';
+                let popText = '';
+
+                if (moleType === 'golden') {
+                    pointsEarned = 30;
+                    popText = '+30 ✨';
+                    popClass = 'positive';
+                    comboCount++;
+                    sfxGoldenHit();
+                } else if (moleType === 'bomb') {
+                    pointsEarned = -25;
+                    popText = '-25 💥';
+                    popClass = 'negative';
+                    comboCount = 0;
+                    sfxBomb();
+                    // 炸弹爆炸粒子
+                    spawnExplosionParticles(moundElement);
+                } else {
+                    pointsEarned = 10;
+                    popText = '+10';
+                    popClass = 'positive';
+                    comboCount++;
+                    sfxHit();
+                }
+
+                // Combo加成
+                if (comboCount >= 5 && moleType !== 'bomb') {
+                    const bonus = Math.floor(comboCount / 3) * 5;
+                    pointsEarned += bonus;
+                    popText += ` 🔥x${comboCount}`;
+                    popClass = 'combo-bonus';
+                    sfxCombo();
+                }
+
+                if (moleType === 'bomb') {
+                    comboCount = 0;
+                }
+
+                score = Math.max(0, score + pointsEarned);
+                updateScoreDisplay();
+                updateComboDisplay();
+
+                // 分数飘出
+                spawnScorePop(moundElement, popText, popClass);
+
+                // 粒子效果
+                if (moleType !== 'bomb') {
+                    spawnParticles(moundElement, moleType === 'golden' ? '#ffd700' : '#ffaa66');
+                }
+
+                // 恢复地鼠
+                setTimeout(() => {
+                    resetMole(moleElement, holeIndex);
+                }, 200);
+            }
+
+            function resetMole(moleElement, holeIndex) {
+                moleElement.classList.remove('active', 'hit', 'missed', 'golden', 'bomb');
+                moleElement.style.bottom = '-70px';
+                moleElement.style.transform = 'translateX(-50%)';
+                moleElement.style.filter = '';
+                holeBusy[holeIndex] = false;
+            }
+
+            // ============ 生成地鼠 ============
+            function spawnMole() {
+                if (!gameActive) return;
+
+                // 检查当前活跃地鼠数量
+                const activeCount = Object.keys(activeMoles).length;
+                if (activeCount >= maxSimultaneous) return;
+
+                // 随机选一个空闲的洞
+                const availableHoles = [];
+                for (let i = 0; i < TOTAL_HOLES; i++) {
+                    if (!activeMoles[i] && !holeBusy[i]) {
+                        availableHoles.push(i);
+                    }
+                }
+                if (availableHoles.length === 0) return;
+
+                const holeIndex = availableHoles[Math.floor(Math.random() * availableHoles.length)];
+                const moundElement = holesGrid.querySelector(`[data-hole="${holeIndex}"] .hole-mound`);
+                const moleElement = moundElement.querySelector('.mole');
+
+                // 决定地鼠类型
+                let moleType = 'normal';
+                const rand = Math.random();
+                if (rand < 0.12) {
+                    moleType = 'bomb'; // 12%概率炸弹
+                } else if (rand < 0.25) {
+                    moleType = 'golden'; // 13%概率金色地鼠
+                }
+
+                // 设置地鼠外观
+                moleElement.classList.remove('hit', 'missed', 'golden', 'bomb');
+                if (moleType === 'golden') {
+                    moleElement.classList.add('golden');
+                } else if (moleType === 'bomb') {
+                    moleElement.classList.add('bomb');
+                }
+
+                // 弹出地鼠
+                moleElement.classList.add('active');
+                moleElement.style.bottom = '5px';
+
+                // 金色地鼠停留时间更短
+                let stayDuration = moleStayDuration;
+                if (moleType === 'golden') stayDuration = Math.max(500, moleStayDuration * 0.55);
+                if (moleType === 'bomb') stayDuration = moleStayDuration * 0.8;
+
+                // 设置自动消失
+                const timeoutId = setTimeout(() => {
+                    if (activeMoles[holeIndex] && activeMoles[holeIndex].type === moleType) {
+                        // 地鼠逃脱了
+                        moleElement.classList.remove('active', 'golden', 'bomb');
+                        moleElement.classList.add('missed');
+                        comboCount = 0;
+                        updateComboDisplay();
+                        sfxMiss();
+                        setTimeout(() => {
+                            resetMole(moleElement, holeIndex);
+                        }, 250);
+                        delete activeMoles[holeIndex];
+                    }
+                }, stayDuration);
+
+                activeMoles[holeIndex] = { type: moleType, timeoutId: timeoutId };
+            }
+
+            // ============ 更新难度 ============
+            function updateDifficulty() {
+                const elapsed = GAME_DURATION - timeLeft;
+                // 随着时间推移，地鼠出现更快、停留更短、同时更多
+                const progress = Math.min(elapsed / GAME_DURATION, 1);
+
+                spawnInterval = 1400 - (progress * 800); // 1400ms -> 600ms
+                moleStayDuration = 1200 - (progress * 500); // 1200ms -> 700ms
+                maxSimultaneous = 1 + Math.floor(progress * 2.5); // 1 -> 最多3个
+
+                // 重新调整生成定时器
+                if (spawnTimer) clearInterval(spawnTimer);
+                if (gameActive) {
+                    spawnTimer = setInterval(spawnMole, Math.max(400, spawnInterval));
+                }
+            }
+
+            // ============ 分数显示 ============
+            function updateScoreDisplay() {
+                scoreDisplay.textContent = score;
+                // 数字跳动动画
+                scoreDisplay.style.transform = 'scale(1.2)';
+                setTimeout(() => { scoreDisplay.style.transform = 'scale(1)'; }, 150);
+            }
+
+            function updateComboDisplay() {
+                if (comboCount >= 3) {
+                    comboIndicator.textContent = `🔥 连击 x${comboCount}`;
+                    comboIndicator.classList.add('active');
+                } else if (comboCount > 0) {
+                    comboIndicator.textContent = `连击 x${comboCount}`;
+                    comboIndicator.classList.add('active');
+                } else {
+                    comboIndicator.textContent = '';
+                    comboIndicator.classList.remove('active');
+                }
+            }
+
+            // ============ 视觉特效 ============
+            function spawnScorePop(moundElement, text, popClass) {
+                const pop = document.createElement('div');
+                pop.className = `score-pop ${popClass}`;
+                pop.textContent = text;
+                const rect = moundElement.getBoundingClientRect();
+                const wrapperRect = gameWrapper.getBoundingClientRect();
+                pop.style.left = (rect.left - wrapperRect.left + rect.width / 2) + 'px';
+                pop.style.top = (rect.top - wrapperRect.top) + 'px';
+                gameWrapper.appendChild(pop);
+                setTimeout(() => pop.remove(), 900);
+            }
+
+            function spawnParticles(moundElement, color) {
+                const rect = moundElement.getBoundingClientRect();
+                const wrapperRect = gameWrapper.getBoundingClientRect();
+                const cx = rect.left - wrapperRect.left + rect.width / 2;
+                const cy = rect.top - wrapperRect.top + rect.height / 3;
+                const count = 8;
+
+                for (let i = 0; i < count; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = cx + 'px';
+                    particle.style.top = cy + 'px';
+                    particle.style.backgroundColor = color;
+                    particle.style.width = (4 + Math.random() * 7) + 'px';
+                    particle.style.height = particle.style.width;
+                    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+                    const distance = 25 + Math.random() * 35;
+                    particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+                    particle.style.setProperty('--dy', Math.sin(angle) * distance - 15 + 'px');
+                    gameWrapper.appendChild(particle);
+                    setTimeout(() => particle.remove(), 500);
+                }
+            }
+
+            function spawnExplosionParticles(moundElement) {
+                const rect = moundElement.getBoundingClientRect();
+                const wrapperRect = gameWrapper.getBoundingClientRect();
+                const cx = rect.left - wrapperRect.left + rect.width / 2;
+                const cy = rect.top - wrapperRect.top + rect.height / 3;
+                const colors = ['#ff4444', '#ff8800', '#ffcc00', '#ff6600', '#ffffff'];
+
+                for (let i = 0; i < 20; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = cx + 'px';
+                    particle.style.top = cy + 'px';
+                    particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.width = (5 + Math.random() * 10) + 'px';
+                    particle.style.height = particle.style.width;
+                    particle.style.borderRadius = Math.random() > 0.5 ? '50%' : '3px';
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 30 + Math.random() * 60;
+                    particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+                    particle.style.setProperty('--dy', Math.sin(angle) * distance - 10 + 'px');
+                    particle.style.animationDuration = (0.4 + Math.random() * 0.6) + 's';
+                    gameWrapper.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+
+            // ============ 计时器 ============
+            function updateTimer() {
+                timeDisplay.textContent = timeLeft;
+                if (timeLeft <= 10) {
+                    timerDisplay.classList.add('urgent');
+                } else {
+                    timerDisplay.classList.remove('urgent');
+                }
+            }
+
+            // ============ 游戏循环 ============
+            function gameTick() {
+                if (!gameActive) return;
+                timeLeft--;
+                updateTimer();
+                updateDifficulty();
+
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }
+
+            // ============ 开始游戏 ============
+            function startGame() {
+                // 重置状态
+                score = 0;
+                timeLeft = GAME_DURATION;
+                gameActive = true;
+                comboCount = 0;
+                activeMoles = {};
+                holeBusy = {};
+                spawnInterval = 1400;
+                moleStayDuration = 1200;
+                maxSimultaneous = 1;
+
+                // 重置UI
+                updateScoreDisplay();
+                updateTimer();
+                updateComboDisplay();
+                timerDisplay.classList.remove('urgent');
+                overlay.classList.remove('show');
+                btnStart.style.display = 'none';
+                gameWrapper.classList.add('playing');
+
+                // 重置所有地鼠
+                const allMoles = holesGrid.querySelectorAll('.mole');
+                allMoles.forEach((mole, i) => {
+                    resetMole(mole, i);
+                });
+
+                // 清除旧定时器
+                if (gameTimer) clearInterval(gameTimer);
+                if (spawnTimer) clearInterval(spawnTimer);
+
+                // 启动定时器
+                gameTimer = setInterval(gameTick, 1000);
+                spawnTimer = setInterval(spawnMole, spawnInterval);
+
+                // 立即生成第一只地鼠
+                setTimeout(spawnMole, 400);
+
+                // 激活音效上下文（需要用户交互）
+                getAudioContext();
+            }
+
+            // ============ 结束游戏 ============
+            function endGame() {
+                gameActive = false;
+                gameWrapper.classList.remove('playing');
+
+                if (gameTimer) clearInterval(gameTimer);
+                if (spawnTimer) clearInterval(spawnTimer);
+                gameTimer = null;
+                spawnTimer = null;
+
+                // 清除所有活跃地鼠
+                Object.keys(activeMoles).forEach(holeIndex => {
+                    const moleData = activeMoles[holeIndex];
+                    clearTimeout(moleData.timeoutId);
+                    const moundEl = holesGrid.querySelector(`[data-hole="${holeIndex}"] .hole-mound`);
+                    if (moundEl) {
+                        const moleEl = moundEl.querySelector('.mole');
+                        if (moleEl) {
+                            resetMole(moleEl, parseInt(holeIndex));
+                        }
+                    }
+                });
+                activeMoles = {};
+                holeBusy = {};
+                comboCount = 0;
+                updateComboDisplay();
+                timerDisplay.classList.remove('urgent');
+
+                // 显示结束覆盖层
+                overlayScore.textContent = score + ' 分';
+                overlay.classList.add('show');
+                btnStart.style.display = 'none';
+
+                sfxGameEnd();
+
+                // 如果分数很高，添加特效
+                if (score >= 200) {
+                    overlayScore.style.animation = 'goldenGlow 0.5s ease-in-out infinite alternate';
+                } else {
+                    overlayScore.style.animation = '';
+                }
+            }
+
+            // ============ 重新开始 ============
+            function restartGame() {
+                overlay.classList.remove('show');
+                btnStart.style.display = 'none';
+                overlayScore.style.animation = '';
+                startGame();
+            }
+
+            // ============ 事件绑定 ============
+            btnStart.addEventListener('click', startGame);
+            btnRestart.addEventListener('click', restartGame);
+
+            // 键盘空格键快速开始/重新开始
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (!gameActive && timeLeft === GAME_DURATION) {
+                        startGame();
+                    } else if (!gameActive && overlay.classList.contains('show')) {
+                        restartGame();
+                    }
+                }
+            });
+
+            // ============ 初始化 ============
+            function init() {
+                createHoles();
+                updateScoreDisplay();
+                updateTimer();
+                btnStart.style.display = 'block';
+                overlay.classList.remove('show');
+                gameWrapper.classList.remove('playing');
+                gameActive = false;
+            }
+
+            init();
+
+            console.log('🔨 打地鼠游戏已就绪！');
+            console.log('  🐹 普通地鼠 +10分');
+            console.log('  ✨ 金色地鼠 +30分（稀有，更快）');
+            console.log('  💣 炸弹 -25分（小心！）');
+            console.log('  🔥 连续击中触发连击加成');
+            console.log('  📱 支持移动端触摸');
+            console.log('  ⌨ 按空格键开始游戏');
+            console.log('  点击"开始游戏"或按空格键开始吧！');
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>有手就行 · AI 小游戏黑客松</title>
+<style>
+  :root{
+    --bg:#05080d;
+    --panel:#0b1118;
+    --panel-2:#0e1620;
+    --line:rgba(0,255,160,.16);
+    --green:#27ff99;
+    --green-dim:#15c97a;
+    --cyan:#3df0ff;
+    --ink:#c9f5e4;
+    --ink-soft:#6f8a82;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono","Fira Code",Menlo,Consolas,"PingFang SC",monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--mono);
+    color:var(--ink);
+    background:var(--bg);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(39,255,153,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(39,255,153,.05) 1px,transparent 1px);
+    background-size:34px 34px;
+    mask-image:radial-gradient(circle at 50% 25%,#000 0%,rgba(0,0,0,.35) 70%,transparent 100%);
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,.18) 3px);
+    opacity:.5;
+  }
+  .glow{position:fixed;border-radius:50%;filter:blur(90px);opacity:.25;z-index:0;pointer-events:none}
+  .glow.g1{width:420px;height:420px;background:#0bff9a;top:-160px;left:-120px}
+  .glow.g2{width:380px;height:380px;background:#ff4d9d;bottom:-160px;right:-120px;opacity:.18}
+
+  .wrap{position:relative;z-index:1;max-width:780px;margin:0 auto;padding:30px 18px 70px}
+
+  .term-top{
+    display:flex;align-items:center;gap:8px;
+    border:1px solid var(--line);border-bottom:none;
+    background:var(--panel-2);border-radius:12px 12px 0 0;
+    padding:10px 14px;font-size:12px;color:var(--ink-soft);
+  }
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .term-top .path{margin-left:8px}
+  .term-top .path b{color:var(--green)}
+
+  header{
+    border:1px solid var(--line);border-radius:0 0 12px 12px;
+    background:linear-gradient(180deg,rgba(13,22,30,.9),rgba(8,13,18,.9));
+    padding:28px 22px 24px;
+  }
+  .prompt{color:var(--ink-soft);font-size:13px;margin-bottom:14px}
+  .prompt .u{color:var(--cyan)}
+  .prompt .cmd{color:var(--ink)}
+  .cursor{display:inline-block;width:9px;height:16px;background:var(--green);
+    margin-left:2px;vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  h1{
+    margin:.1em 0;font-size:clamp(26px,7.2vw,46px);line-height:1.12;font-weight:800;
+    color:#eafff5;letter-spacing:-.01em;
+  }
+  h1 .em{color:var(--green);text-shadow:0 0 12px rgba(39,255,153,.55),0 0 30px rgba(39,255,153,.25)}
+  h1 .br{color:var(--ink-soft);font-weight:400}
+  .sub{font-size:clamp(13px,3.4vw,16px);color:var(--ink-soft);margin:12px 0 0;max-width:34em;line-height:1.7}
+  .sub .hl{color:var(--cyan)}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+  .chip{font-size:12px;color:var(--ink);background:rgba(39,255,153,.06);
+    border:1px solid var(--line);padding:6px 12px;border-radius:6px}
+  .chip b{color:var(--green)}
+
+  /* signup CTA */
+  .cta{
+    display:inline-flex;align-items:center;gap:8px;margin-top:18px;text-decoration:none;
+    font-size:14px;font-weight:800;color:#04130c;
+    background:var(--green);padding:12px 22px;border-radius:8px;
+    box-shadow:0 0 0 1px var(--green),0 10px 30px -10px rgba(39,255,153,.7);
+    transition:transform .14s ease,box-shadow .14s ease;
+  }
+  .cta:active{transform:scale(.97)}
+  .cta:hover{box-shadow:0 0 0 1px var(--green),0 14px 38px -10px rgba(39,255,153,.9)}
+  .cta .arr{font-weight:900}
+  .cta-note{margin-top:9px;font-size:12px;color:var(--ink-soft)}
+
+  .note{
+    margin-top:14px;font-size:12.5px;color:var(--ink-soft);line-height:1.7;
+    border-left:2px solid var(--green-dim);padding:4px 0 4px 12px;
+  }
+  .note b{color:var(--ink)}
+
+  .sect{display:flex;align-items:center;gap:12px;margin:34px 0 4px}
+  .sect h2{margin:0;font-size:16px;color:var(--ink);font-weight:700;white-space:nowrap}
+  .sect h2 .c{color:var(--green)}
+  .sect .ln{flex:1;height:1px;background:var(--line)}
+  .sect .n{font-size:12px;color:var(--ink-soft)}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:18px}
+
+  .game{
+    position:relative;display:flex;flex-direction:column;text-decoration:none;
+    color:var(--ink);background:var(--panel);overflow:hidden;
+    border:1px solid var(--line);border-radius:12px;
+    transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+  }
+  .game:active{transform:scale(.975)}
+  .game:hover{transform:translateY(-3px);border-color:var(--green);
+    box-shadow:0 0 0 1px var(--green),0 16px 40px -18px rgba(39,255,153,.5)}
+
+  /* cover image area — emoji fallback shows if image missing/failed */
+  .cover{
+    position:relative;width:100%;overflow:hidden;
+    background:radial-gradient(circle at 50% 40%,rgba(39,255,153,.10),rgba(8,13,18,0) 70%),var(--panel-2);
+    border-bottom:1px solid var(--line);
+  }
+  .cover::before{content:"";display:block;padding-top:100%} /* 强制 1:1 正方形 */
+  .cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+  .cover .ico{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:56px;filter:drop-shadow(0 0 14px rgba(39,255,153,.4));z-index:0}
+  .num{
+    position:absolute;top:8px;left:10px;z-index:2;
+    font-size:22px;font-weight:800;color:var(--green);
+    text-shadow:0 0 8px rgba(39,255,153,.7),0 2px 4px rgba(0,0,0,.6);
+    letter-spacing:.02em;
+  }
+  .num .h{color:var(--ink-soft);font-weight:400;font-size:14px}
+
+  .body{padding:14px 15px 15px;display:flex;flex-direction:column;flex:1}
+  .game h3{margin:0;font-size:16px;font-weight:800;color:#eafff5}
+  .game .en{font-size:11px;color:var(--green-dim);margin-top:3px;letter-spacing:.05em;text-transform:uppercase}
+  .game .desc{font-size:12px;color:var(--ink-soft);margin-top:9px;line-height:1.55;flex:1}
+  .game .play{
+    margin-top:13px;align-self:flex-start;font-size:12px;font-weight:700;
+    color:var(--green);padding:6px 14px;border-radius:6px;
+    border:1px solid var(--line);background:rgba(39,255,153,.06);
+    transition:background .16s,color .16s;
+  }
+  .game:hover .play{background:var(--green);color:#04130c}
+
+  .intro{
+    margin-top:22px;border:1px solid var(--line);border-radius:12px;
+    background:var(--panel);padding:20px 20px 18px;position:relative;
+  }
+  .intro::before{content:"// readme";position:absolute;top:-10px;left:16px;
+    background:var(--bg);padding:0 8px;font-size:11px;color:var(--green-dim)}
+  .intro .slogan{color:var(--green);font-weight:700;font-size:15px;margin:0 0 10px}
+  .intro p{margin:8px 0;color:var(--ink-soft);font-size:13.5px;line-height:1.75}
+  .intro b{color:var(--ink)}
+
+  footer{margin-top:40px;border-top:1px dashed var(--line);padding-top:20px;
+    font-size:12px;color:var(--ink-soft);line-height:1.9}
+  footer .hl{color:var(--green)}
+  footer .blink{animation:blink 1.1s steps(1) infinite;color:var(--green)}
+</style>
+</head>
+<body>
+  <div class="glow g1"></div><div class="glow g2"></div>
+
+  <div class="wrap">
+    <div class="term-top">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="path">~/ <b>hackathon</b> — hitwh · game-jam</span>
+    </div>
+
+    <header>
+      <div class="prompt"><span class="u">student@hitwh</span>:~$ <span class="cmd">./run_hackathon.sh</span><span class="cursor"></span></div>
+      <h1>「<span class="em">有手就行</span>」<span class="br">/</span><br>AI 小游戏黑客松</h1>
+      <p class="sub">一天之内，从零做出一个能玩的小游戏 —— 全程 <span class="hl">国内 AI 工具</span>，不用翻墙。一句话 prompt，生成你的游戏。</p>
+      <div class="meta-row">
+        <span class="chip">📅 <b>6.6</b> 15:00–18:00</span>
+        <span class="chip">👥 每队 <b>≤3</b> 人</span>
+        <span class="chip">🏆 大奖 <b>¥666</b> · 创意奖 <b>¥233</b></span>
+        <span class="chip">🎓 到场 <b>+2</b> 日常行为分</span>
+      </div>
+      <a class="cta" href="https://my.feishu.cn/share/base/form/shrcnCNdy2OO7LgJkM5HDnwHRce" target="_blank" rel="noopener">
+        <span class="arr">&gt;_</span> 我要报名
+      </a>
+      <div class="cta-note">填完表后扫码进活动群 · 名额有限</div>
+    </header>
+
+    <div class="sect">
+      <h2><span class="c">&gt;</span> 游戏作品</h2>
+      <div class="ln"></div>
+      <span class="n">5 games loaded</span>
+    </div>
+
+    <div class="note">这几款是 <b>6.2 预热小活动</b> 中，同学们用 AI 一句话生成的作品。<b>6.6 正式黑客松</b> 见，期待你的创意 👇</div>
+
+    <div class="grid">
+      <a class="game" href="水果忍者.html">
+        <div class="cover"><span class="num"><span class="h">#</span>01</span><span class="ico">🍉</span><img src="cover/01.jpg" alt="" loading="lazy" onerror="this.remove()"></div>
+        <div class="body">
+          <h3>水果切切切</h3><div class="en">Fruit Slice</div>
+          <div class="desc">划动手指切水果，小心别碰到炸弹。</div>
+          <span class="play">$ play →</span>
+        </div>
+      </a>
+
+      <a class="game" href="德州扑克.html">
+        <div class="cover"><span class="num"><span class="h">#</span>02</span><span class="ico">🃏</span><img src="cover/02.jpg" alt="" loading="lazy" onerror="this.remove()"></div>
+        <div class="body">
+          <h3>德州扑克</h3><div class="en">Texas Hold'em</div>
+          <div class="desc">和 AI 同桌博弈，比拼牌技与心理。</div>
+          <span class="play">$ play →</span>
+        </div>
+      </a>
+
+      <a class="game" href="打地鼠.html">
+        <div class="cover"><span class="num"><span class="h">#</span>03</span><span class="ico">🔨</span><img src="cover/03.jpg" alt="" loading="lazy" onerror="this.remove()"></div>
+        <div class="body">
+          <h3>打地鼠</h3><div class="en">Whack-a-Mole</div>
+          <div class="desc">手速大考验，地鼠冒头就敲，分秒必争。</div>
+          <span class="play">$ play →</span>
+        </div>
+      </a>
+
+      <a class="game" href="贪吃蛇.html">
+        <div class="cover"><span class="num"><span class="h">#</span>04</span><span class="ico">🐍</span><img src="cover/04.jpg" alt="" loading="lazy" onerror="this.remove()"></div>
+        <div class="body">
+          <h3>贪吃蛇</h3><div class="en">Snake</div>
+          <div class="desc">经典街机风，吃豆变长，挑战最高分。</div>
+          <span class="play">$ play →</span>
+        </div>
+      </a>
+
+      <a class="game" href="种菜消消乐.html">
+        <div class="cover"><span class="num"><span class="h">#</span>05</span><span class="ico">🥕</span><img src="cover/05.jpg" alt="" loading="lazy" onerror="this.remove()"></div>
+        <div class="body">
+          <h3>菜园攻防战</h3><div class="en">Match-3 Farm Defense</div>
+          <div class="desc">消消乐种菜，攒资源建防御，抵御宠物突袭。</div>
+          <span class="play">$ play →</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="intro">
+      <p class="slogan">$ echo "有工具，谁都能做出来；做不完，也值得上台讲"</p>
+      <p>AI 已经能让零基础的人做出能玩的小游戏。这是一场 <b>AI 辅助的命题 game jam</b>：用 DeepSeek / Trae SOLO / 即梦 这些国内直连工具，命题做游戏、部署上线、互相试玩、现场投票。</p>
+      <p>欢迎非程序员 —— 会画画、有点子、想学的都能来。上面五款，就是一句话生成出来的 demo，点开即玩。</p>
+    </div>
+
+    <footer>
+      <div><span class="hl">&gt;</span> 「有手就行」哈工大威海 AI 小游戏黑客松</div>
+      <div><span class="hl">&gt;</span> 用国内 AI 工具，一句话生成你的小游戏 · 6.6 见<span class="blink">_</span></div>
+    </footer>
+  </div>
+</body>
+</html>

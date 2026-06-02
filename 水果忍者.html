@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>水果切切切 | 经典切割游戏</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(145deg, #0a2f2a 0%, #051f1b 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Poppins', 'Fredoka One', 'Comic Neue', system-ui, -apple-system, sans-serif;
+            touch-action: none; /* 禁止触摸滚动 */
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 10px;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 42px;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255,255,255,0.1);
+            cursor: crosshair;
+            background: radial-gradient(circle at 20% 30%, #3e7c5c, #1e4a3a);
+            touch-action: none;
+            width: 100%;
+            height: auto;
+        }
+
+        /* 确保canvas内尺寸固定，外框自适应 */
+        @media (min-width: 860px) {
+            canvas {
+                width: 860px;
+                height: 640px;
+            }
+        }
+
+        @media (max-width: 860px) {
+            canvas {
+                width: 98vw;
+                height: calc(98vw * 640 / 860);
+            }
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            width: 100%;
+            max-width: 860px;
+            margin-top: 18px;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .score-panel {
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(8px);
+            border-radius: 100px;
+            padding: 8px 24px;
+            display: flex;
+            gap: 28px;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,215,150,0.5);
+        }
+
+        .score-box, .best-box {
+            text-align: center;
+            color: #ffefc0;
+            text-shadow: 0 2px 3px #00000040;
+        }
+
+        .score-label, .best-label {
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            font-weight: 500;
+            background: #f5b64230;
+            padding: 2px 10px;
+            border-radius: 50px;
+        }
+
+        .score-value, .best-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 4px;
+            font-family: monospace;
+            letter-spacing: 2px;
+            color: #ffd966;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff9a3c, #d63e2c);
+            border: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 8px 28px;
+            border-radius: 60px;
+            color: white;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 6px 0 #732c1a;
+            transition: 0.07s linear;
+            touch-action: manipulation;
+        }
+
+        button:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #732c1a;
+        }
+
+        .tip {
+            background: #2a2418aa;
+            backdrop-filter: blur(4px);
+            border-radius: 60px;
+            padding: 6px 20px;
+            font-size: 0.8rem;
+            color: #fdebb3;
+            font-weight: 500;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .slash-effect {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="860" height="640"></canvas>
+        <div class="game-info">
+            <div class="score-panel">
+                <div class="score-box">
+                    <div class="score-label">🍉 分数</div>
+                    <div class="score-value" id="scoreDisplay">0</div>
+                </div>
+                <div class="best-box">
+                    <div class="best-label">🏆 最高分</div>
+                    <div class="best-value" id="bestDisplay">0</div>
+                </div>
+            </div>
+            <button id="resetButton">🔪 再来一刀</button>
+            <div class="tip">✂️ 手指/鼠标划屏切水果！别切💣炸弹哟！</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ----- canvas 元素 -----
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // ----- 游戏配置 -----
+        const W = 860, H = 640;
+        canvas.width = W;
+        canvas.height = H;
+        
+        // ----- 全局游戏状态 -----
+        let fruits = [];          // 水果/炸弹对象统一数组 {x, y, vx, vy, radius, type, colorVariant}
+        let score = 0;
+        let bestScore = 0;
+        
+        // 切割轨迹点 (用于绘制)
+        let drawPoints = [];      // 存储当前拖动中的点 {x, y}
+        let isDragging = false;
+        let lastPoint = null;     // 上一次鼠标坐标，用于线段检测
+        
+        // 飘字特效数组 { text, x, y, life, alpha }
+        let floatingTexts = [];
+        
+        // 游戏循环 & 生成控制
+        let lastTimestamp = 0;
+        let lastSpawnTime = 0;
+        let animationId = null;
+        
+        // 动态生成间隔 (秒) 初始0.8秒，随分数加快 最快0.28秒
+        let baseSpawnInterval = 0.8;
+        const MIN_SPAWN_INTERVAL = 0.28;
+        
+        // 炸弹概率 (15%)
+        const BOMB_RATE = 0.15;
+        
+        // 水果基础半径
+        const BASE_RADIUS = 28;
+        const BOMB_RADIUS = 30;
+        
+        // 物体速度范围 (向上为主 + 轻微飘移)
+        const MIN_VY = -4.2;
+        const MAX_VY = -2.6;
+        const VX_RANGE = 1.6;
+        
+        // ----- 辅助函数 -----
+        function loadBestScore() {
+            const stored = localStorage.getItem('fruitNinjaBest');
+            if(stored && !isNaN(parseInt(stored))) {
+                bestScore = parseInt(stored);
+            } else {
+                bestScore = 0;
+            }
+            document.getElementById('bestDisplay').innerText = bestScore;
+        }
+        
+        function saveBestScore() {
+            if(score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('fruitNinjaBest', bestScore);
+                document.getElementById('bestDisplay').innerText = bestScore;
+            }
+        }
+        
+        function updateScoreUI() {
+            document.getElementById('scoreDisplay').innerText = score;
+            if(score > bestScore) {
+                document.getElementById('b
