@@ -235,4 +235,511 @@
         function updateScoreUI() {
             document.getElementById('scoreDisplay').innerText = score;
             if(score > bestScore) {
-                document.getElementById('b
+                document.getElementById('bestDisplay').innerText = score;
+            }
+        }
+        
+        // 添加飘字特效
+        function addFloatingText(text, x, y, isBonus = true) {
+            floatingTexts.push({
+                text: text,
+                x: x,
+                y: y,
+                life: 1.0,
+                alpha: 1,
+                isBonus: isBonus
+            });
+        }
+        
+        // ----- 生成新物体（水果 或 炸弹）-----
+        function spawnObject(nowTime) {
+            // 随机类型: 炸弹 or 水果
+            const isBomb = Math.random() < BOMB_RATE;
+            const radius = isBomb ? BOMB_RADIUS : BASE_RADIUS;
+            // 出生在底部区域 (x 边界留出半径空间，y 从底部出现)
+            const x = Math.random() * (W - 2 * radius) + radius;
+            const y = H - radius + (Math.random() * 8 - 4); // 底部稍微浮动
+            // 速度：向上为主，稍带水平飘移
+            const vy = MIN_VY + Math.random() * (MAX_VY - MIN_VY);
+            const vx = (Math.random() - 0.5) * VX_RANGE * 1.6;
+            
+            let colorVariant = null;
+            if(!isBomb) {
+                // 水果颜色变体 0:橙,1:红,2:绿,3:黄
+                colorVariant = Math.floor(Math.random() * 4);
+            }
+            
+            fruits.push({
+                x, y, vx, vy, radius,
+                type: isBomb ? 'bomb' : 'fruit',
+                colorVariant: colorVariant
+            });
+        }
+        
+        // 更新物体的位置，移除超出画布的
+        function updateObjects() {
+            for(let i = fruits.length-1; i >= 0; i--) {
+                const obj = fruits[i];
+                obj.x += obj.vx;
+                obj.y += obj.vy;
+                // 超出边界移除（顶部、底部、左右超出一定范围）
+                if(obj.y + obj.radius < -40 || obj.y - obj.radius > H + 80 ||
+                   obj.x + obj.radius < -50 || obj.x - obj.radius > W + 50) {
+                    fruits.splice(i,1);
+                    continue;
+                }
+                // 轻微空气阻力让运动更自然
+                obj.vx *= 0.998;
+                obj.vy += 0.05;   // 微弱重力，让抛物线轻微下沉，更真实
+                // 限速防止飞出宇宙
+                if(obj.vy > 4) obj.vy = 4;
+            }
+        }
+        
+        // ---------- 几何：点到线段的最短距离平方 (用于精准切割) ----------
+        function distanceSqToSegment(px, py, x1, y1, x2, y2) {
+            const ax = px - x1;
+            const ay = py - y1;
+            const bx = x2 - x1;
+            const by = y2 - y1;
+            const dot = ax * bx + ay * by;
+            const len2 = bx * bx + by * by;
+            if(len2 === 0) return (ax*ax + ay*ay);
+            let t = dot / len2;
+            t = Math.max(0, Math.min(1, t));
+            const projX = x1 + t * bx;
+            const projY = y1 + t * by;
+            const dx = px - projX;
+            const dy = py - projY;
+            return dx*dx + dy*dy;
+        }
+        
+        // 核心切割检测: 遍历所有水果/炸弹，线段碰撞则处理 (移除/增减分数)
+        function handleSliceSegment(x1, y1, x2, y2) {
+            if(!isDragging) return false;
+            let hitAnything = false;
+            // 从后往前遍历，安全删除
+            for(let i = fruits.length-1; i >= 0; i--) {
+                const obj = fruits[i];
+                const rad = obj.radius;
+                const centerX = obj.x;
+                const centerY = obj.y;
+                // 计算线段到圆心距离平方
+                const distSq = distanceSqToSegment(centerX, centerY, x1, y1, x2, y2);
+                if(distSq <= rad * rad) {
+                    hitAnything = true;
+                    // 命中处理
+                    if(obj.type === 'fruit') {
+                        // 切水果加分 +10
+                        score += 10;
+                        updateScoreUI();
+                        saveBestScore();
+                        addFloatingText('+10 🍎', obj.x, obj.y-10, true);
+                        // 水果被切小特效: 瞬时闪现白圈 (简单模拟)
+                        createSliceSpark(obj.x, obj.y);
+                    } 
+                    else if(obj.type === 'bomb') {
+                        // 切炸弹扣20分，不低于负分但可以负数 (游戏继续)
+                        score -= 20;
+                        updateScoreUI();
+                        saveBestScore();   // 最高分依然保留正向记录
+                        addFloatingText('-20 💣', obj.x, obj.y-10, false);
+                        createSliceSpark(obj.x, obj.y, true);
+                        // 炸弹爆炸小红闪屏效果（极速闪烁一次)
+                        flashRedScreen();
+                    }
+                    // 移除物体
+                    fruits.splice(i,1);
+                }
+            }
+            return hitAnything;
+        }
+        
+        // 简单火花粒子视觉（画圆闪）
+        function createSliceSpark(x, y, isBomb=false) {
+            // 由于不需要复杂粒子，临时在特效数组里加一个短暂白/红圈 (通过绘制额外效果)
+            // 在帧绘制时我们有单独画爆炸圈效果，用一个简单存储爆炸点数组更好
+            if(!window._sparkArray) window._sparkArray = [];
+            window._sparkArray.push({
+                x: x, y: y, radius: 12,
+                life: 0.35,   // 秒为单位, 动画帧里逐渐消失
+                isBomb: isBomb
+            });
+        }
+        
+        function flashRedScreen() {
+            // 迅速闪红 (通过全局变量让绘图时覆盖半透明红色)
+            window._redFlash = 0.35;
+        }
+        
+        // 更新火花特效
+        function updateSparks(deltaTime) {
+            if(!window._sparkArray) window._sparkArray = [];
+            for(let i=0; i<window._sparkArray.length; i++) {
+                window._sparkArray[i].life -= deltaTime;
+                if(window._sparkArray[i].life <= 0) {
+                    window._sparkArray.splice(i,1);
+                    i--;
+                }
+            }
+            if(window._redFlash > 0) {
+                window._redFlash -= deltaTime;
+                if(window._redFlash < 0) window._redFlash = 0;
+            }
+        }
+        
+        // 飘字特效更新
+        function updateFloatingTexts(deltaTime) {
+            for(let i=0; i<floatingTexts.length; i++) {
+                floatingTexts[i].life -= deltaTime * 1.5;
+                floatingTexts[i].y -= deltaTime * 45;
+                floatingTexts[i].alpha = Math.min(1, floatingTexts[i].life * 1.8);
+                if(floatingTexts[i].life <= 0) {
+                    floatingTexts.splice(i,1);
+                    i--;
+                }
+            }
+        }
+        
+        // ---------- 线段插值检测（防止快速滑动遗漏物体）----------
+        function robustSliceBetween(p0, p1) {
+            const distance = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+            const step = 12; // 每12像素检测一次，确保命中
+            if(distance < step) {
+                handleSliceSegment(p0.x, p0.y, p1.x, p1.y);
+                return;
+            }
+            const steps = Math.ceil(distance / step);
+            for(let i = 0; i < steps; i++) {
+                const t = i / steps;
+                const t2 = (i+1) / steps;
+                const ix1 = p0.x + (p1.x - p0.x) * t;
+                const iy1 = p0.y + (p1.y - p0.y) * t;
+                const ix2 = p0.x + (p1.x - p0.x) * t2;
+                const iy2 = p0.y + (p1.y - p0.y) * t2;
+                handleSliceSegment(ix1, iy1, ix2, iy2);
+            }
+        }
+        
+        // ----- 绘图模块（水果、炸弹、切割线、特效）-----
+        function drawFruit(obj) {
+            const {x, y, radius, colorVariant, type} = obj;
+            if(type === 'bomb') {
+                // 画黑色炸弹
+                ctx.save();
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = "#330000";
+                ctx.beginPath();
+                ctx.arc(x, y, radius-1, 0, Math.PI*2);
+                ctx.fillStyle = "#2a1a1a";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x-3, y-4, 5, 0, Math.PI*2);
+                ctx.fillStyle = "#441111";
+                ctx.fill();
+                ctx.fillStyle = "#ff4444";
+                ctx.beginPath();
+                ctx.arc(x-3, y-5, 2, 0, Math.PI*2);
+                ctx.fill();
+                // 引线
+                ctx.beginPath();
+                ctx.moveTo(x+10, y-12);
+                ctx.lineTo(x+18, y-22);
+                ctx.lineTo(x+8, y-18);
+                ctx.fillStyle = "#7a4c2c";
+                ctx.fill();
+                ctx.fillStyle = "#d43f1f";
+                ctx.font = `bold ${radius-8}px monospace`;
+                ctx.fillText("💣", x-13, y+7);
+                ctx.restore();
+                // 炸弹骷髅标记
+                ctx.fillStyle = "#ffffffee";
+                ctx.font = `${radius-8}px "Segoe UI"`;
+                ctx.fillText("💀", x-9, y+6);
+            } 
+            else {
+                // 水果绘制: 鲜艳多汁
+                ctx.save();
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = "rgba(0,0,0,0.3)";
+                let mainColor, innerColor, leafColor;
+                switch(colorVariant) {
+                    case 0: mainColor = "#FF8C42"; innerColor = "#F0A65A"; leafColor = "#6B8C3E"; break; // 橙
+                    case 1: mainColor = "#E34234"; innerColor = "#E85D4E"; leafColor = "#5E8C3A"; break; // 红苹果
+                    case 2: mainColor = "#98C44C"; innerColor = "#B2DC66"; leafColor = "#4C7A34"; break; // 青梨
+                    default: mainColor = "#F3C13A"; innerColor = "#FAD460"; leafColor = "#6C9936"; break; // 芒果
+                }
+                ctx.beginPath();
+                ctx.arc(x, y, radius-1, 0, Math.PI*2);
+                ctx.fillStyle = mainColor;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x-2, y-2, radius*0.3, 0, Math.PI*2);
+                ctx.fillStyle = innerColor;
+                ctx.fill();
+                // 高光
+                ctx.beginPath();
+                ctx.arc(x-5, y-7, 4, 0, Math.PI*2);
+                ctx.fillStyle = "#FFF8E7";
+                ctx.fill();
+                // 叶子
+                ctx.beginPath();
+                ctx.moveTo(x+6, y-20);
+                ctx.quadraticCurveTo(x+15, y-24, x+12, y-12);
+                ctx.fillStyle = leafColor;
+                ctx.fill();
+                // 种子点
+                ctx.fillStyle = "#7A4C2C";
+                for(let i=0;i<3;i++) {
+                    ctx.beginPath();
+                    ctx.arc(x-4 + i*4, y+3, 2, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+        
+        // 绘制所有物体
+        function drawObjects() {
+            for(let obj of fruits) {
+                drawFruit(obj);
+            }
+        }
+        
+        // 绘制切割轨迹 (动感白色刀光)
+        function drawSliceline() {
+            if(drawPoints.length < 2) return;
+            ctx.save();
+            ctx.beginPath();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = 'rgba(255, 255, 240, 0.85)';
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = 'white';
+            for(let i=0; i<drawPoints.length-1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(drawPoints[i].x, drawPoints[i].y);
+                ctx.lineTo(drawPoints[i+1].x, drawPoints[i+1].y);
+                ctx.stroke();
+            }
+            // 加亮发光
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#fff9c4';
+            for(let i=0; i<drawPoints.length-1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(drawPoints[i].x, drawPoints[i].y);
+                ctx.lineTo(drawPoints[i+1].x, drawPoints[i+1].y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        
+        // 火花特效绘制
+        function drawSparks() {
+            if(!window._sparkArray) return;
+            for(let sp of window._sparkArray) {
+                const rad = sp.radius * (sp.life * 1.5);
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, rad, 0, Math.PI*2);
+                ctx.fillStyle = sp.isBomb ? `rgba(255, 60, 30, ${sp.life*0.9})` : `rgba(255, 200, 80, ${sp.life})`;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(sp.x-2, sp.y-2, rad*0.5, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(255, 255, 180, ${sp.life*0.8})`;
+                ctx.fill();
+            }
+        }
+        
+        function drawFloatingTexts() {
+            for(let txt of floatingTexts) {
+                ctx.font = `bold ${24 - (1-txt.life)*6}px "Segoe UI", system-ui`;
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = "black";
+                ctx.fillStyle = txt.isBonus ? `rgba(255, 230, 100, ${txt.alpha})` : `rgba(255, 80, 80, ${txt.alpha})`;
+                ctx.fillText(txt.text, txt.x-18, txt.y-12);
+            }
+        }
+        
+        function drawBackgroundDetails() {
+            // 装饰网格
+            ctx.strokeStyle = "#FFF8D0aa";
+            ctx.lineWidth = 1;
+            for(let i=0; i<W; i+=50){
+                ctx.beginPath();
+                ctx.moveTo(i,0);
+                ctx.lineTo(i,H);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0,i%H);
+                ctx.lineTo(W,i%H);
+                ctx.stroke();
+            }
+        }
+        
+        // 红色闪光特效
+        function drawRedFlash() {
+            if(window._redFlash && window._redFlash > 0) {
+                ctx.fillStyle = `rgba(255, 20, 20, ${window._redFlash * 0.6})`;
+                ctx.fillRect(0,0,W,H);
+            }
+        }
+        
+        // 主渲染
+        function render() {
+            ctx.clearRect(0,0,W,H);
+            drawBackgroundDetails();
+            drawObjects();
+            drawSliceline();
+            drawSparks();
+            drawFloatingTexts();
+            drawRedFlash();
+        }
+        
+        // ----- 生成物体基于时间差（动态间隔）-----
+        let lastGenTime = performance.now() / 1000;
+        function updateSpawner(nowSec) {
+            // 动态间隔：分数越高生成越快
+            let dynamicInterval = Math.max(MIN_SPAWN_INTERVAL, baseSpawnInterval - Math.floor(score / 280) * 0.04);
+            dynamicInterval = Math.min(0.75, dynamicInterval);
+            if(nowSec - lastGenTime >= dynamicInterval) {
+                lastGenTime = nowSec;
+                // 一次可能生成 1~2 个水果，增加热闹感
+                const count = Math.random() > 0.65 ? 2 : 1;
+                for(let i=0;i<count;i++) {
+                    spawnObject();
+                }
+            }
+        }
+        
+        // 主循环时间管理
+        let lastFrameTime = 0;
+        function gameLoop(nowMs) {
+            const nowSec = nowMs / 1000;
+            let deltaTime = Math.min(0.033, (nowMs - lastFrameTime) / 1000);
+            if(deltaTime <= 0) deltaTime = 0.016;
+            lastFrameTime = nowMs;
+            
+            // 更新物体位置
+            updateObjects();
+            // 更新特效
+            updateSparks(deltaTime);
+            updateFloatingTexts(deltaTime);
+            // 动态生成水果/炸弹
+            updateSpawner(nowSec);
+            
+            // 渲染所有内容
+            render();
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        // ----- 事件监听 (鼠标 + 触摸) 切割核心逻辑 -----
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;   // canvas物理像素比
+            const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if(e.touches) {
+                if(e.touches.length === 0) return null;
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            let canvasX = (clientX - rect.left) * scaleX;
+            let canvasY = (clientY - rect.top) * scaleY;
+            canvasX = Math.min(Math.max(0, canvasX), W);
+            canvasY = Math.min(Math.max(0, canvasY), H);
+            return { x: canvasX, y: canvasY };
+        }
+        
+        function startDrag(e) {
+            e.preventDefault();
+            const pos = getCanvasCoords(e);
+            if(!pos) return;
+            isDragging = true;
+            drawPoints = [{ x: pos.x, y: pos.y }];
+            lastPoint = { x: pos.x, y: pos.y };
+        }
+        
+        function onDrag(e) {
+            if(!isDragging) return;
+            e.preventDefault();
+            const pos = getCanvasCoords(e);
+            if(!pos) return;
+            const currentPoint = { x: pos.x, y: pos.y };
+            if(lastPoint) {
+                // 稳健插值切割检测
+                robustSliceBetween(lastPoint, currentPoint);
+            }
+            drawPoints.push(currentPoint);
+            // 限制点数保持性能
+            if(drawPoints.length > 35) drawPoints.shift();
+            lastPoint = currentPoint;
+        }
+        
+        function endDrag(e) {
+            if(!isDragging) return;
+            e.preventDefault();
+            isDragging = false;
+            drawPoints = [];
+            lastPoint = null;
+        }
+        
+        function attachEvents() {
+            canvas.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', (e) => {
+                if(isDragging) onDrag(e);
+            });
+            window.addEventListener('mouseup', endDrag);
+            
+            canvas.addEventListener('touchstart', startDrag, {passive: false});
+            canvas.addEventListener('touchmove', onDrag, {passive: false});
+            canvas.addEventListener('touchend', endDrag);
+            canvas.addEventListener('touchcancel', endDrag);
+            // 防止从canvas外松开鼠标依然结束
+            canvas.addEventListener('dragstart', (e) => e.preventDefault());
+        }
+        
+        // 重置游戏
+        function resetGame() {
+            score = 0;
+            fruits = [];
+            floatingTexts = [];
+            drawPoints = [];
+            isDragging = false;
+            lastPoint = null;
+            if(window._sparkArray) window._sparkArray = [];
+            window._redFlash = 0;
+            updateScoreUI();
+            saveBestScore();
+            // 重置生成计时基准，避免立即大量生成
+            lastGenTime = performance.now() / 1000;
+            // 开局先赠送几个水果
+            for(let i=0;i<4;i++) {
+                setTimeout(() => { spawnObject(); }, i*120);
+            }
+        }
+        
+        // 初始化游戏
+        function init() {
+            loadBestScore();
+            resetGame();
+            attachEvents();
+            // 启动动画循环
+            lastFrameTime = performance.now();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        // 绑定重置按钮
+        document.getElementById('resetButton').addEventListener('click', () => {
+            resetGame();
+        });
+        
+        init();
+    })();
+</script>
+</body>
+</html>
