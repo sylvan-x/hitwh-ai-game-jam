@@ -148,6 +148,10 @@
     transition:background .16s,color .16s;
   }
   .game:hover .play{background:var(--green);color:#04130c}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+  .actions .play{margin-top:0}
+  .play.alt{color:var(--cyan);cursor:pointer}
+  .game:hover .play.alt{background:var(--cyan);color:#04130c}
 
   .intro{
     margin-top:22px;border:1px solid var(--line);border-radius:12px;
@@ -189,6 +193,42 @@
       </a>
       <div class="cta-note">填完表后扫码进活动群 · 名额有限</div>
     </header>
+
+    <div class="sect">
+      <h2><span class="c">&gt;</span> 6.3 区 · 今日挑战</h2>
+      <div class="ln"></div>
+      <span class="n">snake mod jam</span>
+    </div>
+
+    <div class="intro">
+      <p class="slogan">$ ./extend_snake.sh  # 给贪吃蛇加个新玩法</p>
+      <p>今天就一件事：拿下面的<b>原版贪吃蛇</b>，用 AI 给它<b>加点新花样</b> —— 加道具、加难度、换皮、改规则，一句话就能改。</p>
+      <p>改完在 DeepSeek 点右上角的<b>分享按钮</b>，把对话链接丢进群里就算提交，<b>不限次数，越多越好</b>。</p>
+      <p>🏆 我和<b>贪吃蛇作者</b>一起评出 <b>3 位「最佳点子王」</b>；再加 <b>1 位「头号玩家」</b>（首席嘴替 —— 替大家把体验喷出来、提优化点）。<b>这 4 位各得一杯奶茶</b>，找我代下单 ☕</p>
+    </div>
+
+    <div class="grid">
+      <a class="game" href="贪吃蛇.html">
+        <div class="cover"><span class="num" style="font-size:13px">原版</span><span class="ico">🐍</span></div>
+        <div class="body">
+          <h3>贪吃蛇 · 原版</h3><div class="en">Snake · base</div>
+          <div class="desc">就改它。下载下来，丢给 AI 加上你自己的新玩法。</div>
+          <div class="actions">
+            <span class="play">$ play →</span>
+            <span class="play alt" onclick="event.preventDefault();event.stopPropagation();var a=document.createElement('a');a.href='贪吃蛇.html';a.download='贪吃蛇.html';document.body.appendChild(a);a.click();a.remove();">⬇ 下载 HTML</span>
+          </div>
+        </div>
+      </a>
+
+      <a class="game" href="贪吃蛇-sunye-1.html">
+        <div class="cover"><span class="num" style="font-size:13px">参考</span><span class="ico">🧨</span></div>
+        <div class="body">
+          <h3>贪吃蛇 · 炸弹挑战</h3><div class="en">Snake Mod · 参考扩展</div>
+          <div class="desc">一个参考扩展：加了炸弹陷阱、难度解锁、失败毒舌嘲讽。</div>
+          <span class="play">$ 试玩 →</span>
+        </div>
+      </a>
+    </div>
 
     <div class="sect">
       <h2><span class="c">&gt;</span> 6.2 区</h2>
@@ -241,38 +281,6 @@
           <h3>菜园攻防战</h3><div class="en">Match-3 Farm Defense</div>
           <div class="desc">消消乐种菜，攒资源建防御，抵御宠物突袭。</div>
           <span class="play">$ play →</span>
-        </div>
-      </a>
-    </div>
-
-    <div class="sect">
-      <h2><span class="c">&gt;</span> 6.3 区 · 今日挑战</h2>
-      <div class="ln"></div>
-      <span class="n">snake mod jam</span>
-    </div>
-
-    <div class="intro">
-      <p class="slogan">$ ./extend_snake.sh  # 给贪吃蛇加个新玩法</p>
-      <p>今日玩法：在<b>已有的贪吃蛇</b>上做<b>玩法扩展</b>（加道具、加难度、换主题…一句话就能改）。改完点 DeepSeek 右上角的<b>分享按钮</b>，把对话链接发到群里，<b>可多次提交</b>。</p>
-      <p>🏆 我和<b>贪吃蛇作者</b>共同评出 <b>3 位「最佳点子王」</b>；另设 <b>1 位「头号玩家」</b>（首席嘴替 —— 替大家把体验说出来，能喷、能提优化点）。<b>4 位各得一杯奶茶</b>，找我代下单 ☕</p>
-    </div>
-
-    <div class="grid">
-      <a class="game" href="贪吃蛇.html">
-        <div class="cover"><span class="num" style="font-size:13px">原版</span><span class="ico">🐍</span></div>
-        <div class="body">
-          <h3>贪吃蛇 · 原版</h3><div class="en">Snake · base</div>
-          <div class="desc">从这个经典版开始改造，加上你的新玩法。</div>
-          <span class="play">$ play →</span>
-        </div>
-      </a>
-
-      <a class="game" href="贪吃蛇-sunye-1.html">
-        <div class="cover"><span class="num" style="font-size:13px">打样</span><span class="ico">🧨</span></div>
-        <div class="body">
-          <h3>贪吃蛇 · 炸弹挑战</h3><div class="en">Snake Mod · 参考示例</div>
-          <div class="desc">作者的扩展示范：炸弹陷阱 + 难度解锁 + 失败毒舌嘲讽。照这思路扩你的版本。</div>
-          <span class="play">$ 看示例 →</span>
         </div>
       </a>
     </div>
