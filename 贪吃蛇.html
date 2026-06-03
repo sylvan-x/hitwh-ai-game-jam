@@ -194,7 +194,7 @@
         // ----- 游戏配置 -----
         const BOARD_SIZE = 20;      // 20x20 网格
         const CELL_SIZE = 20;       // 像素 20px
-        const TICK_INTERVAL_MS = 150;  // 移动间隔 150ms (经典速度)
+        const TICK_INTERVAL_MS = 130;  // 移动间隔 130ms (略快、更跟手)
         
         // DOM 元素
         const canvas = document.getElementById('snakeCanvas');
@@ -206,7 +206,7 @@
         // ----- 游戏状态变量 -----
         let snake = [];             // 蛇身坐标 {x, y}
         let direction = 'RIGHT';    // 当前移动方向
-        let nextDirection = 'RIGHT'; // 下一次移动实际方向
+        let directionQueue = [];     // 方向输入缓冲队列（让快速连续转向更跟手）
         let food = { x: 12, y: 12 };
         let score = 0;
         let bestScore = 0;
@@ -231,7 +231,7 @@
                 { x: 8, y: 10 }
             ];
             direction = 'RIGHT';
-            nextDirection = 'RIGHT';
+            directionQueue = [];
             score = 0;
             isGameRunning = true;
             isWinFlag = false;
@@ -352,12 +352,13 @@
         function gameTick() {
             if(!isGameRunning) return;  // 已结束或胜利，停止移动
             
-            // 1. 采纳有效方向 (不能反向)
-            const newDir = nextDirection;
-            const curDir = direction;
-            // 禁止原地掉头
-            if(dirMap[newDir] && dirMap[newDir].opposite !== curDir) {
-                direction = newDir;
+            // 1. 从输入队列取一个有效方向 (不能反向，每帧只消费一次转向)
+            while(directionQueue.length > 0) {
+                const newDir = directionQueue.shift();
+                if(dirMap[newDir] && newDir !== direction && dirMap[newDir].opposite !== direction) {
+                    direction = newDir;
+                    break;
+                }
             }
             
             // 当前移动方向向量
@@ -574,10 +575,10 @@
             else if(key === 'ArrowRight') newDir = 'RIGHT';
             
             if(newDir) {
-                const current = direction;
-                // 不能反方向
-                if(dirMap[newDir] && dirMap[newDir].opposite !== current) {
-                    nextDirection = newDir;
+                // 以队尾方向(没有则当前方向)为基准校验，支持快速连续转向，最多缓冲 2 次
+                const ref = directionQueue.length > 0 ? directionQueue[directionQueue.length - 1] : direction;
+                if(dirMap[newDir] && newDir !== ref && dirMap[newDir].opposite !== ref) {
+                    if(directionQueue.length < 3) directionQueue.push(newDir);
                 }
             }
         }
