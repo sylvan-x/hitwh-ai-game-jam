@@ -144,6 +144,38 @@
             margin-top: 8px;
         }
 
+        /* 屏幕方向键 (默认隐藏，游戏进行中显示) */
+        .dpad {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 4px;
+        }
+        .dpad-mid {
+            display: flex;
+            gap: 64px;
+        }
+        .dpad-btn {
+            width: 66px;
+            height: 66px;
+            border: none;
+            border-radius: 18px;
+            background: #2f6b2f;
+            color: #f9ffe6;
+            font-size: 1.6rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #1b3b1b;
+            transition: 0.08s linear;
+            touch-action: manipulation;
+        }
+        .dpad-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1b3b1b;
+            background: #3c8c40;
+        }
+
         .action-btn {
             background: #2f6b2f;
             border: none;
@@ -239,6 +271,16 @@
             <button class="action-btn" id="startBtn">🎮 开始游戏</button>
             <button class="action-btn" id="restartButton">🔄 重置游戏</button>
         </div>
+
+        <!-- 屏幕方向键（游戏进行中显示）-->
+        <div class="dpad" id="dpad">
+            <button class="dpad-btn" data-dir="UP">▲</button>
+            <div class="dpad-mid">
+                <button class="dpad-btn" data-dir="LEFT">◀</button>
+                <button class="dpad-btn" data-dir="RIGHT">▶</button>
+            </div>
+            <button class="dpad-btn" data-dir="DOWN">▼</button>
+        </div>
         <div class="tips">
             🎮 <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> 方向 &nbsp;&nbsp;| 💣 炸弹碰即死 &nbsp;| 🔥 难度解锁提升速度/炸弹数<br>
             🧨 失败触发随机嘲讽（50种毒舌）&nbsp;&nbsp;<kbd>R</kbd> 重置并停止 &nbsp;| <kbd>空格</kbd> 快速开始
@@ -261,7 +303,28 @@
             "🥉 反向竞速第一名", "🎰 赌博式走位，输光光", "🤖 AI看了想格式化", "🧩 你这脑子拼图都缺块", "🕳️ 自己挖坑自己跳", "🔥 炸得漂亮，再来一局？",
             "👎 负分操作，堪称艺术", "🍄 毒蘑菇吃多了？", "🐓 菜鸡啄米都比你准", "🧨 炸弹：精准打击菜鸟", "💥 砰！菜爆了"
         ];
-        
+
+        // ---------- 通关文案库（20句，超过20分死亡时随机展示，不嘲讽）----------
+        const PRAISE_LIST = [
+            "🏆 高手！蛇都服了", "🔥 这波操作行云流水", "👑 你就是传说中的头号玩家", "💪 稳得一批，蛇生圆满", "⭐ 封神局，膜拜",
+            "🚀 直接起飞，控场大师", "🎯 走位风骚，赏心悦目", "😎 这局我给满分", "🐍 蛇：跟着你我很安心", "🥇 王者操作，名不虚传",
+            "🎮 手感绝了，键盘冒火星", "💎 教科书级走位", "🌟 越玩越上头是吧", "🧠 这脑子，下棋都行", "👏 实力劝退炸弹",
+            "🍃 行云流水，蛇舞翩翩", "🔋 满电状态，势不可挡", "🎖️ 战绩可查，实至名归", "🦅 鹰眼级反应", "🎉 漂亮收尾，再来亿把"
+        ];
+
+        // ---------- 里程碑鼓励短句 ----------
+        const CHEER_LIST = [
+            "👍 漂亮!", "🔥 越来越溜!", "💪 稳住!", "⭐ 好球!", "🚀 起飞!",
+            "😎 可以!", "🎯 精准!", "👏 不错哦!", "🌟 牛!", "⚡ 手感来了!"
+        ];
+
+        // ---------- 各等级蛇身配色 ----------
+        const SNAKE_COLORS = {
+            easy:   { headA: '#6fdb3c', headB: '#2f9e2f', bodyA: '#4ba84b', bodyB: '#1f7a1f' }, // 绿
+            medium: { headA: '#5ec8ff', headB: '#2f7fd6', bodyA: '#4aa6e0', bodyB: '#1f5fa8' }, // 蓝
+            hard:   { headA: '#ff8a4c', headB: '#e0432f', bodyA: '#e0653b', bodyB: '#a82f1f' }  // 红
+        };
+
         // ----- 游戏配置 (简单速度降低至200ms，更友好) -----
         const BOARD_SIZE = 20;
         const CELL_SIZE = 20;
@@ -281,6 +344,9 @@
         const mediumBtn = document.getElementById('mediumBtn');
         const hardBtn = document.getElementById('hardBtn');
         const diffBtns = document.querySelectorAll('.difficulty-btn');
+        const difficultyBar = document.querySelector('.difficulty-bar');
+        const controlBar = document.querySelector('.control-bar');
+        const dpad = document.getElementById('dpad');
         
         // ----- 游戏全局变量 -----
         let snake = [];             
@@ -289,7 +355,9 @@
         let food = { x: 15, y: 15 };
         let bombs = [];            
         let score = 0;
-        let bestScore = 0;
+        let bestScores = { easy: 0, medium: 0, hard: 0 };  // 每个等级各记一个最高分
+        let cheerMsg = "";        // 里程碑鼓励文案（短时显示）
+        let cheerTimer = null;
         let isGameRunning = false;      // 游戏是否进行中（蛇在移动）
         let isGameOverFlag = false;     // 是否处于失败/胜利状态（用于显示覆盖层）
         let isWinFlag = false;
@@ -313,6 +381,36 @@
             return TAUNT_LIST[Math.floor(Math.random() * TAUNT_LIST.length)];
         }
         
+        // ---------- 里程碑鼓励：0-20每5分，21-50每10分，51+每20分 ----------
+        function isCheerMilestone(s) {
+            if(s <= 0) return false;
+            if(s <= 20) return s % 5 === 0;
+            if(s <= 50) return s % 10 === 0;
+            return s % 20 === 0;
+        }
+        function maybeCheer(s) {
+            if(!isCheerMilestone(s)) return;
+            cheerMsg = CHEER_LIST[Math.floor(Math.random() * CHEER_LIST.length)];
+            if(cheerTimer) clearTimeout(cheerTimer);
+            cheerTimer = setTimeout(() => { cheerMsg = ""; if(isGameRunning) drawCanvas(); }, 900);
+        }
+
+        // ---------- 每个等级各记一个最高分 ----------
+        function loadBestScores() {
+            const saved = localStorage.getItem('snakeBestScores');
+            if(saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    ['easy','medium','hard'].forEach(k => {
+                        if(typeof data[k] === 'number') bestScores[k] = data[k];
+                    });
+                } catch(e){}
+            }
+        }
+        function saveBestScores() {
+            localStorage.setItem('snakeBestScores', JSON.stringify(bestScores));
+        }
+
         // ---------- 解锁系统 ----------
         function loadUnlockStatus() {
             const saved = localStorage.getItem('snakeUnlocks');
@@ -324,11 +422,9 @@
                 }catch(e){}
             }
             unlocks.easy = true;
-            const savedBest = localStorage.getItem('snakeBestScore');
-            let highScore = 0;
-            if(savedBest && !isNaN(parseInt(savedBest))) highScore = parseInt(savedBest);
-            if(!unlocks.medium && highScore >= DIFFICULTY_SETTINGS.medium.unlockScore) unlocks.medium = true;
-            if(!unlocks.hard && highScore >= DIFFICULTY_SETTINGS.hard.unlockScore) unlocks.hard = true;
+            // 解锁基于各等级自己的最高分：简单≥10解锁中级，中级≥20解锁高级
+            if(!unlocks.medium && bestScores.easy >= DIFFICULTY_SETTINGS.medium.unlockScore) unlocks.medium = true;
+            if(!unlocks.hard && bestScores.medium >= DIFFICULTY_SETTINGS.hard.unlockScore) unlocks.hard = true;
             saveUnlockStatus();
         }
         
@@ -478,8 +574,13 @@
             isGameRunning = false;
             isGameOverFlag = true;
             isWinFlag = false;
-            currentTaunt = getRandomTaunt();
-            if(byBomb) currentTaunt = "💣 " + currentTaunt + " 💣";
+            if(score > 20) {
+                // 超过 20 分：不嘲讽，随机给一句通关文案
+                currentTaunt = PRAISE_LIST[Math.floor(Math.random() * PRAISE_LIST.length)];
+            } else {
+                currentTaunt = getRandomTaunt();
+                if(byBomb) currentTaunt = "💣 " + currentTaunt + " 💣";
+            }
             if(gameInterval) {
                 clearInterval(gameInterval);
                 gameInterval = null;
@@ -553,6 +654,7 @@
                 score++;
                 updateScoreUI();
                 checkScoreUnlock(score, currentDifficulty);
+                maybeCheer(score);   // 里程碑鼓励
                 const success = generateValidFood();
                 if(!success) {
                     victoryGame();
@@ -567,15 +669,15 @@
         // UI分数及最高分
         function updateScoreUI() {
             currentScoreSpan.innerText = score;
-            if(score > bestScore) {
-                bestScore = score;
-                localStorage.setItem('snakeBestScore', bestScore);
+            if(score > (bestScores[currentDifficulty] || 0)) {
+                bestScores[currentDifficulty] = score;
+                saveBestScores();
                 updateBestUI();
-                checkScoreUnlock(bestScore, currentDifficulty);
+                checkScoreUnlock(score, currentDifficulty);
             }
         }
         function updateBestUI() {
-            bestScoreSpan.innerText = bestScore;
+            bestScoreSpan.innerText = bestScores[currentDifficulty] || 0;
         }
         
         // ----- 重置游戏数据（静止状态，不启动计时器）-----
@@ -600,10 +702,7 @@
             currentTaunt = "";
             updateScoreUI();
             
-            // 加载最佳记录
-            const savedBest = localStorage.getItem('snakeBestScore');
-            if(savedBest && !isNaN(parseInt(savedBest))) bestScore = parseInt(savedBest);
-            else bestScore = 0;
+            // 显示当前等级的最高分
             updateBestUI();
             
             // 清空炸弹，先生成食物
@@ -648,9 +747,18 @@
             setDifficulty(level, true);
         }
         
+        // ---------- 控制区切换：进行中显示方向键，隐藏难度/开始重置 ----------
+        function updateControlsUI() {
+            const playing = isGameRunning;
+            if(difficultyBar) difficultyBar.style.display = playing ? 'none' : 'flex';
+            if(controlBar) controlBar.style.display = playing ? 'none' : 'flex';
+            if(dpad) dpad.style.display = playing ? 'flex' : 'none';
+        }
+
         // ---------- 绘制模块 (含开始提示和嘲讽) ----------
         function drawCanvas() {
             if(!ctx) return;
+            updateControlsUI();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             // 网格
             ctx.strokeStyle = '#2c552c';
@@ -716,12 +824,13 @@
                 ctx.beginPath();
                 ctx.roundRect(segX+1, segY+1, CELL_SIZE-2, CELL_SIZE-2, 5);
                 const gradBody = ctx.createLinearGradient(segX, segY, segX+CELL_SIZE, segY+CELL_SIZE);
+                const sc = SNAKE_COLORS[currentDifficulty] || SNAKE_COLORS.easy;
                 if(isHead) {
-                    gradBody.addColorStop(0, '#6fdb3c');
-                    gradBody.addColorStop(1, '#2f9e2f');
+                    gradBody.addColorStop(0, sc.headA);
+                    gradBody.addColorStop(1, sc.headB);
                 } else {
-                    gradBody.addColorStop(0, '#4ba84b');
-                    gradBody.addColorStop(1, '#1f7a1f');
+                    gradBody.addColorStop(0, sc.bodyA);
+                    gradBody.addColorStop(1, sc.bodyB);
                 }
                 ctx.fillStyle = gradBody;
                 ctx.fill();
@@ -779,13 +888,24 @@
                     ctx.fillText('🐍 点击「开始游戏」', canvas.width/2, canvas.height/2 - 20);
                     ctx.font = '14px monospace';
                     ctx.fillStyle = '#a8e68c';
-                    ctx.fillText('使用方向键控制', canvas.width/2, canvas.height/2 + 20);
+                    ctx.fillText('方向键 / 滑动 控制', canvas.width/2, canvas.height/2 + 20);
                 }
                 ctx.textAlign = 'left';
             }
+            // 顶部 HUD：只显示分数
             ctx.font = 'bold 12px monospace';
             ctx.fillStyle = '#c0f0a0';
-            ctx.fillText(`🐍 长度: ${snake.length}  💣 炸弹数:${bombs.length}`, 12, 25);
+            ctx.fillText(`🍎 分数: ${score}`, 12, 25);
+            // 里程碑鼓励效果（短时浮现）
+            if(cheerMsg && isGameRunning) {
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 26px "Segoe UI", monospace';
+                ctx.fillStyle = '#fff48a';
+                ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+                ctx.fillText(cheerMsg, canvas.width/2, 64);
+                ctx.shadowBlur = 0;
+                ctx.textAlign = 'left';
+            }
         }
         
         // ----- 键盘控制 -----
@@ -823,9 +943,36 @@
             }
         }
         
+        // ----- 触摸控制 (手机: 滑动转向 / 轻点开始) -----
+        function enqueueTouchDir(newDir) {
+            const ref = directionQueue.length > 0 ? directionQueue[directionQueue.length - 1] : direction;
+            if(dirMap[newDir] && newDir !== ref && dirMap[newDir].opposite !== ref) {
+                if(directionQueue.length < 3) directionQueue.push(newDir);
+            }
+        }
+        function setupTouchControls() {
+            let sx = 0, sy = 0;
+            canvas.addEventListener('touchstart', (e) => {
+                const t = e.touches[0]; sx = t.clientX; sy = t.clientY;
+            }, { passive: true });
+            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+            canvas.addEventListener('touchend', (e) => {
+                const t = e.changedTouches[0];
+                const dx = t.clientX - sx, dy = t.clientY - sy;
+                if(Math.abs(dx) < 24 && Math.abs(dy) < 24) {   // 轻点：开始/重开
+                    if(!isGameRunning) startGame();
+                    return;
+                }
+                if(!isGameRunning) startGame();   // 滑动也能直接开局
+                if(Math.abs(dx) > Math.abs(dy)) enqueueTouchDir(dx > 0 ? 'RIGHT' : 'LEFT');
+                else enqueueTouchDir(dy > 0 ? 'DOWN' : 'UP');
+            }, { passive: true });
+        }
+
         // ----- 事件绑定 -----
         function bindEvents() {
             window.addEventListener('keydown', handleKeydown);
+            setupTouchControls();
             restartBtn.addEventListener('click', () => {
                 fullResetToIdle();
             });
@@ -838,6 +985,13 @@
                     if(diff === 'medium' && !unlocks.medium) return;
                     if(diff === 'hard' && !unlocks.hard) return;
                     onDifficultyChange(diff);
+                });
+            });
+            // 屏幕方向键
+            document.querySelectorAll('.dpad-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if(!isGameRunning) startGame();
+                    enqueueTouchDir(btn.getAttribute('data-dir'));
                 });
             });
         }
@@ -862,6 +1016,7 @@
         
         // 启动系统: 加载解锁，重置为静止状态，显示开始界面
         window.addEventListener('load', () => {
+            loadBestScores();
             loadUnlockStatus();
             currentDifficulty = 'easy';
             updateDifficultyButtonsUI();

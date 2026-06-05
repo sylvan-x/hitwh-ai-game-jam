@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D 贪吃蛇 | 立方体迷宫 · 广域觅食</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(145deg, #1a472a 0%, #0e2a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Courier New', monospace;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: #0f1f0f;
+            border-radius: 48px;
+            padding: 20px 25px 25px 25px;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+            border: 1px solid #3c8c40;
+            width: 100%;
+            max-width: 650px;
+        }
+
+        .game-panel {
+            background: #0a120a;
+            border-radius: 28px;
+            padding: 12px;
+            box-shadow: inset 0 0 10px #00000033, 0 5px 10px rgba(0,0,0,0.3);
+            position: relative;
+            aspect-ratio: 1 / 1;
+        }
+
+        #three-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 0 0 4px #2b5e2b, 0 8px 20px black;
+            background: #1e2a1a;
+        }
+
+        .info-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            padding: 0 12px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .score-box, .best-score {
+            background: #010b01;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 1.7rem;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            box-shadow: inset 0 1px 3px #00aa2a33, 0 3px 6px black;
+            flex: 1;
+            text-align: center;
+        }
+
+        .score-box {
+            color: #b3ffaa;
+            text-shadow: 0 0 5px #2eff2e;
+        }
+
+        .score-box span, .best-score span {
+            font-size: 0.85rem;
+            margin-right: 8px;
+            display: inline-block;
+            background: #2c5e2c;
+            padding: 2px 10px;
+            border-radius: 30px;
+            color: #e0ffd0;
+            letter-spacing: normal;
+        }
+
+        .best-score {
+            color: #ffd966;
+        }
+
+        .best-score span {
+            color: #ffbb88;
+        }
+
+        .control-bar {
+            display: flex;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .restart-btn {
+            background: #2f6b2f;
+            border: none;
+            font-family: inherit;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 8px 28px;
+            border-radius: 60px;
+            color: #f9ffe6;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.1s linear;
+            box-shadow: 0 5px 0 #1b3b1b;
+            width: 70%;
+            max-width: 200px;
+        }
+
+        .restart-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1b3b1b;
+        }
+
+        .tips {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.75rem;
+            color: #9ecf8a;
+            background: #071a07b3;
+            padding: 6px 12px;
+            border-radius: 50px;
+            backdrop-filter: blur(2px);
+        }
+
+        .tips kbd {
+            background: #1f2a1b;
+            padding: 3px 8px;
+            border-radius: 30px;
+            font-weight: bold;
+            color: #e7ffb0;
+            margin: 0 3px;
+            font-size: 0.7rem;
+            box-shadow: inset 0 1px 0 0 #6ba86b, 0 1px 1px black;
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 12px 15px 20px 15px;
+            }
+            .score-box, .best-score {
+                font-size: 1.2rem;
+                padding: 4px 12px;
+            }
+            .tips {
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <div class="game-panel">
+            <div id="three-container"></div>
+        </div>
+        <div class="info-area">
+            <div class="score-box">
+                <span>🍎 分数</span> <span id="currentScore">0</span>
+            </div>
+            <div class="best-score">
+                <span>🏆 最佳</span> <span id="bestScore">0</span>
+            </div>
+        </div>
+        <div class="control-bar">
+            <button class="restart-btn" id="restartButton">🐍 新的一局 🐍</button>
+        </div>
+        <div class="tips">
+            🎮 <kbd>W</kbd>前进 <kbd>A</kbd><kbd>D</kbd>转向 &nbsp;|&nbsp;
+            <kbd>␣</kbd>上升 <kbd>Ctrl</kbd>下降 &nbsp;|&nbsp;
+            🔄 <kbd>R</kbd> 重新开始 &nbsp;|&nbsp;
+            🟢 苹果感应范围扩大至3x3区域
+        </div>
+    </div>
+</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+
+    // ---------- 游戏配置 ----------
+    const BOARD_SIZE = 20; // 20x20x20 立方体迷宫
+    const CELL_SIZE = 1;
+    const BOARD_CENTER = Math.floor(BOARD_SIZE / 2);
+    const FOOD_MARGIN = 0; // 苹果可生成在任意位置（包含边缘）
+    const TICK_INTERVAL_MS = 130;
+    const VICTORY_SCORE = 100;
+    const CAMERA_DISTANCE = 8;
+    const CAMERA_HEIGHT_OFFSET = 2.5;
+    const CAMERA_LERP_SPEED = 0.08;
+
+    const container = document.getElementById('three-container');
+    const currentScoreSpan = document.getElementById('currentScore');
+    const bestScoreSpan = document.getElementById('bestScore');
+    const restartBtn = document.getElementById('restartButton');
+
+    // ---------- Three.js 初始化 ----------
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#1e2a1a');
+    scene.fog = new THREE.Fog('#1e2a1a', 15, 35);
+
+    const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.5, 50);
+    camera.position.set(BOARD_CENTER, BOARD_CENTER + 2, BOARD_CENTER + 5);
+    camera.lookAt(BOARD_CENTER, BOARD_CENTER, BOARD_CENTER);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // 光照
+    const ambientLight = new THREE.AmbientLight('#3a5a3a', 1.2);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight('#fffbea', 1.5);
+    dirLight.position.set(15, 25, 15);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = 50;
+    dirLight.shadow.camera.left = -15;
+    dirLight.shadow.camera.right = 15;
+    dirLight.shadow.camera.top = 15;
+    dirLight.shadow.camera.bottom = -15;
+    scene.add(dirLight);
+
+    // 边界线框：格子中心是 0..BOARD_SIZE-1，所以外边界应该是 -0.5..BOARD_SIZE-0.5
+    const boundaryGeo = new THREE.BoxGeometry(BOARD_SIZE, BOARD_SIZE, BOARD_SIZE);
+    const boundaryEdges = new THREE.EdgesGeometry(boundaryGeo);
+    const boundaryLine = new THREE.LineSegments(
+        boundaryEdges,
+        new THREE.LineBasicMaterial({ color: '#b6ff8a', transparent: true, opacity: 0.95 })
+    );
+    boundaryLine.position.set((BOARD_SIZE - 1) / 2, (BOARD_SIZE - 1) / 2, (BOARD_SIZE - 1) / 2);
+    scene.add(boundaryLine);
+
+    // 表面虚线网格：每 1 格一条线，只画六个表面
+    function createDashedSurfaceGrid(size, color = '#8cff8c') {
+        const group = new THREE.Group();
+        const min = -0.5;
+        const max = size - 0.5;
+        const material = new THREE.LineDashedMaterial({
+            color,
+            transparent: true,
+            opacity: 0.62,
+            dashSize: 0.22,
+            gapSize: 0.16,
+            depthWrite: false
+        });
+
+        const addLine = (x1, y1, z1, x2, y2, z2) => {
+            const geo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(x1, y1, z1),
+                new THREE.Vector3(x2, y2, z2)
+            ]);
+            const line = new THREE.Line(geo, material);
+            line.computeLineDistances();
+            group.add(line);
+        };
+
+        for (let i = 1; i < size; i++) {
+            const p = min + i;
+            // z = min / max 两个面
+            addLine(min, p, min, max, p, min);
+            addLine(p, min, min, p, max, min);
+            addLine(min, p, max, max, p, max);
+            addLine(p, min, max, p, max, max);
+            // x = min / max 两个面
+            addLine(min, min, p, min, max, p);
+            addLine(min, p, min, min, p, max);
+            addLine(max, min, p, max, max, p);
+            addLine(max, p, min, max, p, max);
+            // y = min / max 两个面
+            addLine(min, min, p, max, min, p);
+            addLine(p, min, min, p, min, max);
+            addLine(min, max, p, max, max, p);
+            addLine(p, max, min, p, max, max);
+        }
+        return group;
+    }
+
+    const grid3D = createDashedSurfaceGrid(BOARD_SIZE);
+    scene.add(grid3D);
+
+    // 蛇与食物父节点
+    const snakeGroup = new THREE.Group();
+    scene.add(snakeGroup);
+    const foodGroup = new THREE.Group();
+    scene.add(foodGroup);
+
+    // 食物跟随点光源
+    const foodPointLight = new THREE.PointLight('#ff5e5e', 1.5, 6);
+    foodPointLight.castShadow = true;
+    scene.add(foodPointLight);
+
+    // 材质与几何体缓存
+    const headMaterial = new THREE.MeshStandardMaterial({ color: '#6fdb3c', roughness: 0.3, metalness: 0.1, emissive: '#1f4f1f' });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: '#4ba84b', roughness: 0.4, metalness: 0.2, emissive: '#0f2f0f' });
+    const bodyGeo = new THREE.SphereGeometry(0.45, 16, 16);
+    const headGeo = new THREE.SphereGeometry(0.48, 20, 20);
+    const foodGeo = new THREE.SphereGeometry(0.45, 24, 24);
+    const foodMaterial = new THREE.MeshStandardMaterial({ color: '#ff5e5e', roughness: 0.2, metalness: 0.1, emissive: '#4a0000' });
+
+    // ---------- 游戏状态 ----------
+    let snake = [];
+    let direction = new THREE.Vector3(0, 0, 1);
+    let lastHorizontalDirection = new THREE.Vector3(0, 0, 1); // 记忆最后水平方向
+    let food = { x: BOARD_CENTER, y: BOARD_CENTER, z: BOARD_CENTER };
+    let score = 0;
+    let bestScore = 0;
+    let isGameRunning = false;
+    let isWinFlag = false;
+    let tickAccumulator = 0;
+    let lastTimestamp = 0;
+
+    // 音效
+    let audioCtx = null;
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    function playBeep(freq, duration, type = 'square', vol = 0.08) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // ---------- 工具函数 ----------
+    function posKey(x, y, z) {
+        return `${x},${y},${z}`;
+    }
+
+    function getEmptyCells() {
+        const occupied = new Set();
+        for (let seg of snake) occupied.add(posKey(seg.x, seg.y, seg.z));
+        const empty = [];
+        for (let x = FOOD_MARGIN; x < BOARD_SIZE - FOOD_MARGIN; x++)
+            for (let y = FOOD_MARGIN; y < BOARD_SIZE - FOOD_MARGIN; y++)
+                for (let z = FOOD_MARGIN; z < BOARD_SIZE - FOOD_MARGIN; z++)
+                    if (!occupied.has(posKey(x, y, z))) empty.push({ x, y, z });
+        return empty;
+    }
+
+    function generateValidFood() {
+        const empty = getEmptyCells();
+        if (empty.length === 0) {
+            victoryGame();
+            return false;
+        }
+        food = { ...empty[Math.floor(Math.random() * empty.length)] };
+        foodGroup.children.forEach(m => m.position.set(food.x, food.y, food.z));
+        foodPointLight.position.set(food.x, food.y, food.z);
+        return true;
+    }
+
+    function victoryGame() {
+        if (!isGameRunning) return;
+        isGameRunning = false;
+        isWinFlag = true;
+        playBeep(880, 0.2, 'square', 0.1);
+        setTimeout(() => playBeep(1100, 0.25, 'square', 0.1), 200);
+    }
+
+    function gameOver() {
+        if (!isGameRunning) return;
+        isGameRunning = false;
+        isWinFlag = false;
+        playBeep(120, 0.4, 'sawtooth', 0.15);
+    }
+
+    function isCollision(snakeArray) {
+        if (snakeArray.length === 0) return true;
+        const head = snakeArray[0];
+        if (head.x < 0 || head.x >= BOARD_SIZE || head.y < 0 || head.y >= BOARD_SIZE || head.z < 0 || head.z >= BOARD_SIZE) return true;
+        const headKey = posKey(head.x, head.y, head.z);
+        for (let i = 1; i < snakeArray.length; i++) {
+            if (posKey(snakeArray[i].x, snakeArray[i].y, snakeArray[i].z) === headKey) return true;
+        }
+        return false;
+    }
+
+    // ---------- 游戏逻辑 (碰撞箱已升级为3x3x3区域) ----------
+    function gameTick() {
+        if (!isGameRunning) return;
+
+        const head = snake[0];
+        const newHead = {
+            x: head.x + direction.x,
+            y: head.y + direction.y,
+            z: head.z + direction.z
+        };
+        
+        // ★★★ 核心改动：苹果的碰撞箱从单格扩大为 3x3x3 立方体区域 ★★★
+        // 蛇头进入以食物为中心的切比雪夫距离 ≤1 的范围内即可吃到苹果 (轻松觅食)
+        const isEating = Math.abs(newHead.x - food.x) <= 1 &&
+                         Math.abs(newHead.y - food.y) <= 1 &&
+                         Math.abs(newHead.z - food.z) <= 1;
+
+        let newSnake = isEating ? [newHead, ...snake] : [newHead, ...snake.slice(0, -1)];
+
+        if (isCollision(newSnake)) {
+            gameOver();
+            updateSnakeMeshes();
+            return;
+        }
+
+        snake = newSnake;
+
+        if (isEating) {
+            score++;
+            updateScoreUI();
+            playBeep(660, 0.1, 'square', 0.08);
+            if (score >= VICTORY_SCORE) {
+                victoryGame();
+                updateSnakeMeshes();
+                return;
+            }
+            if (!generateValidFood()) {
+                updateSnakeMeshes();
+                return;
+            }
+        }
+        updateSnakeMeshes();
+    }
+
+    function updateSnakeMeshes() {
+        while (snakeGroup.children.length > snake.length) snakeGroup.remove(snakeGroup.children[snakeGroup.children.length - 1]);
+        for (let i = 0; i < snake.length; i++) {
+            const seg = snake[i];
+            let mesh;
+            if (i < snakeGroup.children.length) {
+                mesh = snakeGroup.children[i];
+            } else {
+                mesh = new THREE.Mesh(i === 0 ? headGeo : bodyGeo, i === 0 ? headMaterial : bodyMaterial);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                snakeGroup.add(mesh);
+            }
+            mesh.position.set(seg.x, seg.y, seg.z);
+            if (i === 0) {
+                mesh.scale.set(1.08, 1.08, 1.08);
+                mesh.material = headMaterial;
+            } else {
+                mesh.scale.set(1, 1, 1);
+                mesh.material = bodyMaterial;
+            }
+        }
+    }
+
+    function rebuildSnakeMeshes() {
+        while (snakeGroup.children.length > 0) snakeGroup.remove(snakeGroup.children[0]);
+        for (let i = 0; i < snake.length; i++) {
+            const seg = snake[i];
+            const mesh = new THREE.Mesh(i === 0 ? headGeo : bodyGeo, i === 0 ? headMaterial : bodyMaterial);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.position.set(seg.x, seg.y, seg.z);
+            snakeGroup.add(mesh);
+        }
+    }
+
+    // ---------- 摄像机追踪 ----------
+    function updateCamera(deltaTime) {
+        if (snake.length === 0) return;
+        const head = snake[0];
+        const headPos = new THREE.Vector3(head.x, head.y, head.z);
+        const dirVec = direction.clone();
+
+        const horizontalDir = new THREE.Vector3(dirVec.x, 0, dirVec.z);
+        let behind;
+        if (horizontalDir.lengthSq() < 0.01) {
+            behind = new THREE.Vector3(0, 0, -CAMERA_DISTANCE);
+        } else {
+            behind = horizontalDir.normalize().multiplyScalar(-CAMERA_DISTANCE);
+        }
+        const targetCamPos = headPos.clone().add(behind).add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
+        const lookTarget = headPos.clone().add(dirVec.clone().multiplyScalar(2.0));
+
+        camera.position.lerp(targetCamPos, CAMERA_LERP_SPEED);
+        const targetMatrix = new THREE.Matrix4().lookAt(camera.position, lookTarget, new THREE.Vector3(0, 1, 0));
+        const targetQuat = new THREE.Quaternion().setFromRotationMatrix(targetMatrix);
+        camera.quaternion.slerp(targetQuat, CAMERA_LERP_SPEED * 1.2);
+    }
+
+    // ---------- UI ----------
+    function updateScoreUI() {
+        currentScoreSpan.innerText = score;
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('snake3dBestScore', bestScore);
+            bestScoreSpan.innerText = bestScore;
+        }
+    }
+
+    function loadBestScore() {
+        const saved = localStorage.getItem('snake3dBestScore');
+        bestScore = saved && !isNaN(parseInt(saved)) ? parseInt(saved) : 0;
+        bestScoreSpan.innerText = bestScore;
+    }
+
+    // ---------- 输入处理 ----------
+    function handleKeydown(e) {
+        const key = e.key;
+        if (['w','W','a','A','d','D',' ','Control','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','r','R'].includes(key)) {
+            e.preventDefault();
+        }
+        if (key === 'r' || key === 'R') {
+            restartGame();
+            return;
+        }
+        if (!isGameRunning) return;
+
+        if (key === 'w' || key === 'W') return; // 保持原样: W未作前进映射(依靠计时器方向)
+
+        // 水平转向 (A / D)
+        if (key === 'a' || key === 'A' || key === 'd' || key === 'D') {
+            const isLeft = (key === 'a' || key === 'A');
+            const currentDir = direction.clone();
+            if (Math.abs(currentDir.y) === 1) {
+                // 垂直状态时基于记忆的水平方向转向
+                const base = lastHorizontalDirection.clone();
+                const rotated = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), isLeft ? Math.PI / 2 : -Math.PI / 2);
+                direction.copy(rotated).round();
+                lastHorizontalDirection.copy(direction);
+            } else {
+                // 水平状态直接绕Y轴旋转
+                const rotated = currentDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), isLeft ? Math.PI / 2 : -Math.PI / 2);
+                direction.copy(rotated).round();
+                lastHorizontalDirection.copy(direction);
+            }
+            return;
+        }
+
+        // 上升 (空格)
+        if (key === ' ') {
+            if (direction.y !== 1) {
+                if (direction.y !== -1) lastHorizontalDirection.copy(direction);
+                direction.set(0, 1, 0);
+            }
+            return;
+        }
+
+        // 下降 (Ctrl)
+        if (key === 'Control') {
+            if (direction.y !== -1) {
+                if (direction.y !== 1) lastHorizontalDirection.copy(direction);
+                direction.set(0, -1, 0);
+            }
+        }
+    }
+
+    // ---------- 游戏生命周期 ----------
+    function initGame() {
+        snake = [
+            { x: BOARD_CENTER, y: BOARD_CENTER, z: BOARD_CENTER },
+            { x: BOARD_CENTER, y: BOARD_CENTER, z: BOARD_CENTER - 1 },
+            { x: BOARD_CENTER, y: BOARD_CENTER, z: BOARD_CENTER - 2 }
+        ];
+        direction.set(0, 0, 1);
+        lastHorizontalDirection.set(0, 0, 1);
+        score = 0;
+        isGameRunning = true;
+        isWinFlag = false;
+        tickAccumulator = 0;
+        lastTimestamp = performance.now();
+
+        updateScoreUI();
+        loadBestScore();
+
+        while (foodGroup.children.length > 0) foodGroup.remove(foodGroup.children[0]);
+        const foodMesh = new THREE.Mesh(foodGeo, foodMaterial);
+        foodMesh.castShadow = true;
+        foodMesh.receiveShadow = true;
+        foodGroup.add(foodMesh);
+        generateValidFood();
+
+        rebuildSnakeMeshes();
+
+        if (snake.length > 0) {
+            const head = snake[0];
+            camera.position.set(head.x - direction.x * CAMERA_DISTANCE, head.y + CAMERA_HEIGHT_OFFSET, head.z - direction.z * CAMERA_DISTANCE);
+            camera.lookAt(head.x + direction.x, head.y + direction.y, head.z + direction.z);
+        }
+    }
+
+    function restartGame() {
+        initGame();
+        initAudio();
+    }
+
+    // ---------- 渲染循环 ----------
+    function animate(timestamp) {
+        requestAnimationFrame(animate);
+
+        if (!lastTimestamp) lastTimestamp = timestamp;
+        let delta = timestamp - lastTimestamp;
+        if (delta > 200) delta = 200;
+        lastTimestamp = timestamp;
+
+        if (isGameRunning) {
+            tickAccumulator += delta;
+            while (tickAccumulator >= TICK_INTERVAL_MS) {
+                tickAccumulator -= TICK_INTERVAL_MS;
+                gameTick();
+                if (!isGameRunning) break;
+            }
+        }
+
+        updateCamera(delta);
+
+        foodGroup.children.forEach(m => {
+            m.rotation.y += 0.02;
+            m.rotation.x += 0.01;
+        });
+
+        renderer.render(scene, camera);
+        updateOverlayText();
+    }
+
+    // 叠加文字层
+    let overlayDiv = null;
+    function getOverlayDiv() {
+        if (!overlayDiv) {
+            overlayDiv = document.createElement('div');
+            overlayDiv.style.cssText = `
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                pointer-events: none; font-family: 'Courier New', monospace;
+                text-shadow: 0 0 10px black; color: #f5ffb0; font-weight: bold;
+                text-align: center; z-index: 10; background: rgba(0,0,0,0.65);
+                border-radius: 20px;
+            `;
+            document.querySelector('.game-panel').appendChild(overlayDiv);
+        }
+        return overlayDiv;
+    }
+
+    function updateOverlayText() {
+        const overlay = getOverlayDiv();
+        if (!isGameRunning) {
+            overlay.style.display = 'flex';
+            overlay.innerHTML = isWinFlag
+                ? `<div style="font-size:2rem;">✨ 完美通关 ✨</div><div style="font-size:1rem; margin-top:10px; color:#d2ffb0;">你已成为立方体蛇王！<br>按 R 或点击按钮重开</div>`
+                : `<div style="font-size:2.2rem; color:#ffb87c;">💀 GAME OVER 💀</div><div style="font-size:1rem; margin-top:10px; color:#d4ffb0;">按 R 或点击按钮继续</div>`;
+        } else {
+            overlay.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    restartBtn.addEventListener('click', () => {
+        initAudio();
+        restartGame();
+    });
+
+    window.addEventListener('keydown', handleKeydown);
+
+    loadBestScore();
+    initGame();
+    initAudio();
+    requestAnimationFrame(animate);
+</script>
+</body>
+</html>

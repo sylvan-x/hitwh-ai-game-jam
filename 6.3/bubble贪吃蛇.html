@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>贪吃蛇·障碍物挑战 | 穿墙模式 难度解锁</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #1a472a 0%, #0e2a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Press Start 2P', 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: #0f1f0f;
+            border-radius: 48px;
+            padding: 20px 25px 25px 25px;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+            border: 1px solid #3c8c40;
+        }
+
+        .game-panel {
+            background: #0a120a;
+            border-radius: 28px;
+            padding: 12px;
+            box-shadow: inset 0 0 10px #00000033, 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 20px;
+            box-shadow: 0 0 0 4px #2b5e2b, 0 8px 20px black;
+            background-color: #1e2a1a;
+            cursor: pointer;
+        }
+
+        .info-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            padding: 0 12px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .score-box {
+            background: #010b01;
+            padding: 6px 18px;
+            border-radius: 40px;
+            color: #b3ffaa;
+            font-weight: bold;
+            font-size: 1.7rem;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px #2eff2e;
+            box-shadow: inset 0 1px 3px #00aa2a33, 0 3px 6px black;
+            flex: 1;
+            text-align: center;
+        }
+
+        .score-box span {
+            font-size: 0.9rem;
+            background: #2c5e2c;
+            padding: 2px 10px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-right: 10px;
+            color: #e0ffd0;
+        }
+
+        .best-score {
+            background: #121c0e;
+            padding: 6px 18px;
+            border-radius: 40px;
+            color: #ffd966;
+            font-size: 1.4rem;
+            font-weight: bold;
+            font-family: monospace;
+            box-shadow: inset 0 1px 2px #ffee77, 0 3px 6px black;
+            flex: 1;
+            text-align: center;
+        }
+
+        .best-score span {
+            font-size: 0.85rem;
+            color: #ffbb88;
+            margin-right: 8px;
+        }
+
+        .difficulty-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 15px 0 8px;
+        }
+        .difficulty-btn {
+            background: #2a3b2a;
+            border: none;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1rem;
+            padding: 6px 16px;
+            border-radius: 60px;
+            color: #cbdfb5;
+            cursor: pointer;
+            transition: 0.1s linear;
+            box-shadow: 0 3px 0 #141f14;
+            flex: 1;
+            max-width: 110px;
+        }
+        .difficulty-btn.active {
+            background: #4cae4c;
+            color: white;
+            box-shadow: 0 0 8px #a0ff9e;
+            border: 1px solid #d4ffb0;
+        }
+        .difficulty-btn.locked {
+            background: #2a2a24;
+            color: #8f9b7a;
+            cursor: not-allowed;
+            opacity: 0.65;
+            box-shadow: none;
+            transform: none;
+        }
+        .control-bar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 8px;
+        }
+
+        .action-btn {
+            background: #2f6b2f;
+            border: none;
+            font-family: inherit;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 8px 20px;
+            border-radius: 60px;
+            color: #f9ffe6;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.1s linear;
+            box-shadow: 0 5px 0 #1b3b1b;
+            flex: 1;
+            max-width: 160px;
+        }
+        .action-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1b3b1b;
+        }
+        #startBtn {
+            background: #4c7e3c;
+            box-shadow: 0 5px 0 #2c5420;
+        }
+
+        .tips {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.75rem;
+            color: #9ecf8a;
+            background: #071a07b3;
+            padding: 6px 12px;
+            border-radius: 50px;
+            backdrop-filter: blur(2px);
+        }
+
+        .tips kbd {
+            background: #1f2a1b;
+            padding: 3px 8px;
+            border-radius: 30px;
+            font-weight: bold;
+            color: #e7ffb0;
+            margin: 0 3px;
+            font-size: 0.7rem;
+            box-shadow: inset 0 1px 0 0 #6ba86b, 0 1px 1px black;
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 12px 15px 20px 15px;
+            }
+            .score-box, .best-score {
+                font-size: 1.2rem;
+                padding: 4px 12px;
+            }
+            .difficulty-btn {
+                font-size: 0.75rem;
+                padding: 4px 8px;
+            }
+            .action-btn {
+                font-size: 0.9rem;
+                padding: 6px 12px;
+            }
+            .tips {
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <div class="game-panel">
+            <canvas id="snakeCanvas" width="400" height="400"></canvas>
+        </div>
+        <div class="info-area">
+            <div class="score-box">
+                <span>🍎 SCORE</span> <span id="currentScore">0</span>
+            </div>
+            <div class="best-score">
+                <span>🏆 BEST</span> <span id="bestScore">0</span>
+            </div>
+        </div>
+        
+        <div class="difficulty-bar">
+            <button class="difficulty-btn" data-diff="easy">🐢 简单</button>
+            <button class="difficulty-btn" data-diff="medium" id="mediumBtn">⚡ 中级(有障碍)</button>
+            <button class="difficulty-btn" data-diff="hard" id="hardBtn">💀 高级(四边障碍)</button>
+        </div>
+        
+        <div class="control-bar">
+            <button class="action-btn" id="startBtn">🎮 开始游戏</button>
+            <button class="action-btn" id="restartButton">🔄 重置游戏</button>
+        </div>
+        <div class="tips">
+            🌊 穿墙模式 | <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> 方向 &nbsp;&nbsp;| 💣 炸弹 &nbsp;| 🧱 障碍物不可穿越<br>
+            🔓 中级解锁:简单10分 &nbsp;| 高级解锁:中级20分 &nbsp;| <kbd>空格</kbd>开始 <kbd>R</kbd>重置
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- 嘲讽文案库（50句随机）----------
+        const TAUNT_LIST = [
+            "😏 就这？ 蛇都替你丢脸", "🤡 你的操作像没睡醒", "💩 键盘上撒把米，鸡都玩得比你好", "🐌 你这速度，乌龟都笑了", "🤣 贪吃蛇被你玩成碰碰车", 
+            "🧠 脑子是个好东西，可惜你没有", "🎮 建议卸载游戏保平安", "🥬 菜就多练，别出来献丑", "👻 蛇都看不下去自尽了", "💔 炸弹不炸你炸谁？",
+            "🍌 你的反应比树懒还慢", "🎪 马戏团缺个小丑，就你了", "😭 求求你别玩了，蛇要抑郁了", "💢 这操作，我家猫踩键盘都更强", "🔥 0分表演，建议重开",
+            "🕹️ 方向键被狗啃了？", "🧨 炸弹就喜欢你这种莽夫", "🤦 这波死法，教科书级反面案例", "🐍 蛇说：我太难了，带不动", "🎯 精准送死，无人能敌",
+            "😵 你的贪吃蛇得了帕金森？", "🍂 菜得安详，下次再来", "💣 炸弹：感谢老铁送的人头", "🥴 迷之走位，阎王点赞", "🤌 这局输在智商欠费",
+            "🦥 树懒看了都摇头", "🐢 龟龟：兄弟你比我慢", "🧠 脑回路被堵了？", "🎭 年度最烂操作候选", "💀 死亡如风，常伴汝身",
+            "🚫 游戏体验毁灭者", "🧟 僵尸都比你灵活", "🍳 下饭操作，米饭杀手", "📉 技术滑坡，不忍直视", "🎲 运气差？不，是人菜", 
+            "🔁 重开吧，这蛇没救了", "🧹 菜鸡扫帚，一扫而空", "💨 操作稀碎，蛇都叹气", "🐛 你玩的不是贪吃蛇，是寻死模拟器", "⚰️ 棺材板压不住了",
+            "🥉 反向竞速第一名", "🎰 赌博式走位，输光光", "🤖 AI看了想格式化", "🧩 你这脑子拼图都缺块", "🕳️ 自己挖坑自己跳", "🔥 炸得漂亮，再来一局？",
+            "👎 负分操作，堪称艺术", "🍄 毒蘑菇吃多了？", "🐓 菜鸡啄米都比你准", "🧨 炸弹：精准打击菜鸟", "💥 砰！菜爆了"
+        ];
+        
+        // ----- 游戏配置 -----
+        const BOARD_SIZE = 20;
+        const CELL_SIZE = 20;
+        const DIFFICULTY_SETTINGS = {
+            easy:   { speed: 200, bombCount: 1, name: "简单", unlockScore: 0 },      
+            medium: { speed: 135, bombCount: 1, name: "中级", unlockScore: 10 },     
+            hard:   { speed: 105, bombCount: 2, name: "高级", unlockScore: 20 }      
+        };
+        
+        // DOM 元素
+        const canvas = document.getElementById('snakeCanvas');
+        const ctx = canvas.getContext('2d');
+        const currentScoreSpan = document.getElementById('currentScore');
+        const bestScoreSpan = document.getElementById('bestScore');
+        const restartBtn = document.getElementById('restartButton');
+        const startBtn = document.getElementById('startBtn');
+        const diffBtns = document.querySelectorAll('.difficulty-btn');
+        
+        // ----- 游戏全局变量 -----
+        let snake = [];             
+        let direction = 'RIGHT';
+        let nextDirection = 'RIGHT';
+        let food = { x: 15, y: 15 };
+        let bombs = [];            
+        let obstacles = new Set();   // 存储障碍物坐标字符串 "x,y"
+        let score = 0;
+        let bestScore = 0;
+        let isGameRunning = false;
+        let isGameOverFlag = false;
+        let isWinFlag = false;
+        let gameInterval = null;
+        let currentDifficulty = 'easy';
+        let currentTaunt = "";
+        
+        // 解锁状态
+        let unlocks = { easy: true, medium: false, hard: false };
+        
+        // 方向映射
+        const dirMap = {
+            'UP':    { x: 0, y: -1, opposite: 'DOWN' },
+            'DOWN':  { x: 0, y: 1,  opposite: 'UP' },
+            'LEFT':  { x: -1, y: 0, opposite: 'RIGHT' },
+            'RIGHT': { x: 1, y: 0,  opposite: 'LEFT' }
+        };
+        
+        // 穿墙函数
+        function wrapPosition(coord) {
+            let newX = coord.x;
+            let newY = coord.y;
+            if (newX < 0) newX = BOARD_SIZE - 1;
+            if (newX >= BOARD_SIZE) newX = 0;
+            if (newY < 0) newY = BOARD_SIZE - 1;
+            if (newY >= BOARD_SIZE) newY = 0;
+            return { x: newX, y: newY };
+        }
+        
+        // ---------- 障碍物生成（基于难度）----------
+        function generateObstaclesForDifficulty(difficulty) {
+            obstacles.clear();
+            if (difficulty === 'medium') {
+                // 中级模式：左上和右下两个顶点两侧7个格处设置垂直于边界7个格的L型障碍
+                // 左上角区域: 顶点(0,0) 两侧7格 -> 从(7,0)到(7,7)竖线，以及从(0,7)到(7,7)横线？ 按照描述“距离左上顶点两侧7个格处设置垂直于边界7个格的L型障碍”
+                // 理解为: 左上顶点向右7格 和 向下7格 交汇处形成一个L型，即竖线 x=7 从 y=0 到 y=7，横线 y=7 从 x=0 到 x=7 (不重复计算交点)
+                for (let y = 0; y <= 7; y++) {
+                    obstacles.add(`7,${y}`);
+                }
+                for (let x = 0; x <= 6; x++) {  // 避免重复添加(7,7)已在竖线添加
+                    obstacles.add(`${x},7`);
+                }
+                // 右下顶点(19,19) 两侧7个格 -> 向左7格和向上7格形成L型: 竖线 x=12 从 y=12 到 y=19, 横线 y=12 从 x=12 到 x=19
+                for (let y = 12; y <= 19; y++) {
+                    obstacles.add(`12,${y}`);
+                }
+                for (let x = 13; x <= 19; x++) { // 避免重复(12,12)
+                    obstacles.add(`${x},12`);
+                }
+            } 
+            else if (difficulty === 'hard') {
+                // 高级模式：每条边距离顺时针侧顶点5个格处设置垂直于边界8个格的障碍
+                // 顺时针方向: 上边从左到右，右边从上到下，下边从右到左，左边从下到上
+                // 上边: 距离左上顶点(0,0)顺时针5格 -> x=5, 垂直于边界(向下)8格 => (5,0)到(5,7)
+                for (let y = 0; y <= 7; y++) {
+                    obstacles.add(`5,${y}`);
+                }
+                // 右边: 距离右上顶点(19,0)顺时针5格 -> y=5, 垂直于边界(向左)8格 => x从12到19, y=5
+                for (let x = 12; x <= 19; x++) {
+                    obstacles.add(`${x},5`);
+                }
+                // 下边: 距离右下顶点(19,19)顺时针5格 -> x=14, 垂直于边界(向上)8格 => y从12到19, x=14
+                for (let y = 12; y <= 19; y++) {
+                    obstacles.add(`14,${y}`);
+                }
+                // 左边: 距离左下顶点(0,19)顺时针5格 -> y=14, 垂直于边界(向右)8格 => x从0到7, y=14
+                for (let x = 0; x <= 7; x++) {
+                    obstacles.add(`${x},14`);
+                }
+            }
+            // 简单模式无障碍物
+        }
+        
+        // 检查某坐标是否在障碍物上
+        function isObstacle(x, y) {
+            return obstacles.has(`${x},${y}`);
+        }
+        
+        // 获取所有被占用的格子（蛇身+炸弹+障碍物）
+        function getAllOccupied() {
+            const occupied = new Set();
+            for(let seg of snake) occupied.add(`${seg.x},${seg.y}`);
+            for(let bomb of bombs) occupied.add(`${bomb.x},${bomb.y}`);
+            for(let obs of obstacles) occupied.add(obs);
+            return occupied;
+        }
+        
+        function getEmptyCells(excludeCoords = []) {
+            const occupied = getAllOccupied();
+            for(let coord of excludeCoords) occupied.add(`${coord.x},${coord.y}`);
+            const empty = [];
+            for(let i=0; i<BOARD_SIZE; i++) {
+                for(let j=0; j<BOARD_SIZE; j++) {
+                    if(!occupied.has(`${i},${j}`)) empty.push({x:i, y:j});
+                }
+            }
+            return empty;
+        }
+        
+        function generateValidFood() {
+            const exclude = [...bombs];
+            const empty = getEmptyCells(exclude);
+            if(empty.length === 0) return false;
+            const rand = Math.floor(Math.random() * empty.length);
+            food = { ...empty[rand] };
+            return true;
+        }
+        
+        function generateBombs() {
+            const bombCount = getCurrentBombCount();
+            const occupied = getAllOccupied();
+            // 食物暂时不算在生成炸弹的占位中，但炸弹不能与食物重叠，后面会过滤
+            let available = [];
+            for(let i=0;i<BOARD_SIZE;i++) {
+                for(let j=0;j<BOARD_SIZE;j++) {
+                    if(!occupied.has(`${i},${j}`) && !(i === food.x && j === food.y)) {
+                        available.push({x:i, y:j});
+                    }
+                }
+            }
+            let toGenerate = Math.min(bombCount, available.length);
+            let newBombs = [];
+            for(let i=0; i<toGenerate; i++) {
+                if(available.length === 0) break;
+                const randIdx = Math.floor(Math.random() * available.length);
+                newBombs.push({...available[randIdx]});
+                available.splice(randIdx, 1);
+            }
+            bombs = newBombs;
+        }
+        
+        function refreshBombs() {
+            generateBombs();
+        }
+        
+        function isHeadOnBomb(head) {
+            return bombs.some(b => b.x === head.x && b.y === head.y);
+        }
+        
+        function getRandomTaunt() {
+            return TAUNT_LIST[Math.floor(Math.random() * TAUNT_LIST.length)];
+        }
+        
+        // 解锁系统
+        function loadUnlockStatus() {
+            const saved = localStorage.getItem('snakeUnlocks_v2');
+            if(saved) {
+                try{
+                    const data = JSON.parse(saved);
+                    if(data.medium !== undefined) unlocks.medium = data.medium;
+                    if(data.hard !== undefined) unlocks.hard = data.hard;
+                }catch(e){}
+            }
+            unlocks.easy = true;
+            const savedBest = localStorage.getItem('snakeBestScore');
+            let highScore = 0;
+            if(savedBest && !isNaN(parseInt(savedBest))) highScore = parseInt(savedBest);
+            if(!unlocks.medium && highScore >= DIFFICULTY_SETTINGS.medium.unlockScore) unlocks.medium = true;
+            if(!unlocks.hard && highScore >= DIFFICULTY_SETTINGS.hard.unlockScore) unlocks.hard = true;
+            saveUnlockStatus();
+        }
+        
+        function saveUnlockStatus() {
+            localStorage.setItem('snakeUnlocks_v2', JSON.stringify({ medium: unlocks.medium, hard: unlocks.hard }));
+        }
+        
+        function checkScoreUnlock(currentScore, difficulty) {
+            let changed = false;
+            if(difficulty === 'easy' && !unlocks.medium && currentScore >= DIFFICULTY_SETTINGS.medium.unlockScore) {
+                unlocks.medium = true;
+                changed = true;
+            }
+            if(difficulty === 'medium' && !unlocks.hard && currentScore >= DIFFICULTY_SETTINGS.hard.unlockScore) {
+                unlocks.hard = true;
+                changed = true;
+            }
+            if(changed) {
+                saveUnlockStatus();
+                updateDifficultyButtonsUI();
+                if(unlocks.medium && difficulty==='easy') showUnlockToast("⚡ 中级难度已解锁！新增L型障碍物");
+                if(unlocks.hard && difficulty==='medium') showUnlockToast("💀 高级难度已解锁！新增四边垂直障碍");
+            }
+        }
+        
+        function showUnlockToast(msg) {
+            const tipsDiv = document.querySelector('.tips');
+            const oldText = tipsDiv.innerHTML;
+            tipsDiv.innerHTML = `✨ ${msg} ✨`;
+            setTimeout(() => {
+                if(tipsDiv) tipsDiv.innerHTML = oldText;
+            }, 2500);
+        }
+        
+        function updateDifficultyButtonsUI() {
+            diffBtns.forEach(btn => {
+                const diff = btn.getAttribute('data-diff');
+                if(diff === 'easy') {
+                    btn.classList.remove('locked');
+                    btn.disabled = false;
+                } else if(diff === 'medium') {
+                    if(unlocks.medium) {
+                        btn.classList.remove('locked');
+                        btn.disabled = false;
+                        btn.innerText = '⚡ 中级(有障碍)';
+                    } else {
+                        btn.classList.add('locked');
+                        btn.disabled = true;
+                        btn.innerText = '🔒 中级(需简单10分)';
+                    }
+                } else if(diff === 'hard') {
+                    if(unlocks.hard) {
+                        btn.classList.remove('locked');
+                        btn.disabled = false;
+                        btn.innerText = '💀 高级(四边障碍)';
+                    } else {
+                        btn.classList.add('locked');
+                        btn.disabled = true;
+                        btn.innerText = '🔒 高级(需中级20分)';
+                    }
+                }
+                if(currentDifficulty === diff && !btn.disabled) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        function setDifficulty(level, resetAndStop=true) {
+            if(level === currentDifficulty) return;
+            if(!unlocks[level] && level !== 'easy') {
+                showUnlockToast(`⚠️ 未解锁 ${DIFFICULTY_SETTINGS[level].name} 难度！`);
+                return;
+            }
+            currentDifficulty = level;
+            updateDifficultyButtonsUI();
+            if(resetAndStop) {
+                fullResetToIdle();
+            }
+        }
+        
+        function getCurrentBombCount() {
+            return DIFFICULTY_SETTINGS[currentDifficulty].bombCount;
+        }
+        function getCurrentSpeed() {
+            return DIFFICULTY_SETTINGS[currentDifficulty].speed;
+        }
+        
+        // 游戏结束/胜利
+        function gameOver(byBomb = false) {
+            if(!isGameRunning) return;
+            isGameRunning = false;
+            isGameOverFlag = true;
+            isWinFlag = false;
+            currentTaunt = getRandomTaunt();
+            if(byBomb) currentTaunt = "💣 " + currentTaunt + " 💣";
+            if(gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            drawCanvas();
+        }
+        
+        function victoryGame() {
+            if(!isGameRunning) return;
+            isGameRunning = false;
+            isGameOverFlag = true;
+            isWinFlag = true;
+            currentTaunt = "";
+            if(gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            drawCanvas();
+        }
+        
+        // 自身碰撞检测（排除障碍物已单独处理）
+        function isSelfCollision(snakeArray) {
+            if(!snakeArray.length) return true;
+            const head = snakeArray[0];
+            for(let i=1; i<snakeArray.length; i++) {
+                if(snakeArray[i].x === head.x && snakeArray[i].y === head.y) return true;
+            }
+            return false;
+        }
+        
+        // 核心移动逻辑（带穿墙 + 障碍物碰撞）
+        function gameTick() {
+            if(!isGameRunning) return;
+            
+            if (dirMap[nextDirection] && dirMap[nextDirection].opposite !== direction) {
+                direction = nextDirection;
+            }
+            const moveVec = dirMap[direction];
+            if(!moveVec) return;
+            const head = snake[0];
+            let rawNewHead = {
+                x: head.x + moveVec.x,
+                y: head.y + moveVec.y
+            };
+            const newHead = wrapPosition(rawNewHead);
+            
+            // 障碍物碰撞检测（撞到障碍物直接死亡）
+            if(isObstacle(newHead.x, newHead.y)) {
+                gameOver(false);
+                drawCanvas();
+                return;
+            }
+            
+            const isEating = (newHead.x === food.x && newHead.y === food.y);
+            let newSnake;
+            if(isEating) {
+                newSnake = [newHead, ...snake];
+            } else {
+                newSnake = [newHead, ...snake.slice(0, -1)];
+            }
+            
+            if(isSelfCollision(newSnake)) {
+                gameOver(false);
+                drawCanvas();
+                return;
+            }
+            
+            if(isHeadOnBomb(newHead)) {
+                gameOver(true);
+                drawCanvas();
+                return;
+            }
+            
+            snake = newSnake;
+            
+            if(isEating) {
+                score++;
+                updateScoreUI();
+                checkScoreUnlock(score, currentDifficulty);
+                const success = generateValidFood();
+                if(!success) {
+                    victoryGame();
+                    drawCanvas();
+                    return;
+                }
+                refreshBombs();
+            }
+            drawCanvas();
+        }
+        
+        function updateScoreUI() {
+            currentScoreSpan.innerText = score;
+            if(score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('snakeBestScore', bestScore);
+                updateBestUI();
+                checkScoreUnlock(bestScore, currentDifficulty);
+            }
+        }
+        function updateBestUI() {
+            bestScoreSpan.innerText = bestScore;
+        }
+        
+        // 重置游戏到静止状态（根据当前难度重新生成障碍物）
+        function fullResetToIdle() {
+            if(gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            // 重置蛇
+            snake = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            direction = 'RIGHT';
+            nextDirection = 'RIGHT';
+            score = 0;
+            isGameRunning = false;
+            isGameOverFlag = false;
+            isWinFlag = false;
+            currentTaunt = "";
+            updateScoreUI();
+            
+            const savedBest = localStorage.getItem('snakeBestScore');
+            if(savedBest && !isNaN(parseInt(savedBest))) bestScore = parseInt(savedBest);
+            else bestScore = 0;
+            updateBestUI();
+            
+            // 生成当前难度的障碍物
+            generateObstaclesForDifficulty(currentDifficulty);
+            
+            // 清空炸弹，生成有效食物（避开障碍物+蛇）
+            bombs = [];
+            if(!generateValidFood()) {
+                // 紧急避难：找一个空闲格子
+                for(let i=0;i<BOARD_SIZE;i++) {
+                    let found=false;
+                    for(let j=0;j<BOARD_SIZE;j++) {
+                        if(!isObstacle(i,j) && !snake.some(s=>s.x===i && s.y===j)) {
+                            food={x:i,y:j}; found=true; break;
+                        }
+                    }
+                    if(found) break;
+                }
+            }
+            generateBombs();
+            drawCanvas();
+        }
+        
+        function startGame() {
+            if(isGameRunning) return;
+            if(isGameOverFlag) {
+                fullResetToIdle();
+            }
+            if(gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            isGameRunning = true;
+            isGameOverFlag = false;
+            isWinFlag = false;
+            const speed = getCurrentSpeed();
+            gameInterval = setInterval(gameTick, speed);
+            drawCanvas();
+        }
+        
+        function onDifficultyChange(level) {
+            setDifficulty(level, true);
+        }
+        
+        // 绘图模块（包含障碍物渲染）
+        function drawCanvas() {
+            if(!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#2c552c';
+            ctx.lineWidth = 0.8;
+            for(let i=0; i<=BOARD_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i*CELL_SIZE, 0);
+                ctx.lineTo(i*CELL_SIZE, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i*CELL_SIZE);
+                ctx.lineTo(canvas.width, i*CELL_SIZE);
+                ctx.stroke();
+            }
+            
+            // 绘制障碍物（深灰色石墙）
+            for(let obs of obstacles) {
+                const [x,y] = obs.split(',').map(Number);
+                const ox = x * CELL_SIZE, oy = y * CELL_SIZE;
+                ctx.fillStyle = '#5a4a3a';
+                ctx.shadowBlur = 2;
+                ctx.fillRect(ox+1, oy+1, CELL_SIZE-2, CELL_SIZE-2);
+                ctx.fillStyle = '#8b6946';
+                ctx.fillRect(ox+3, oy+3, CELL_SIZE-6, CELL_SIZE-6);
+                ctx.fillStyle = '#b87c4f';
+                for(let i=0;i<3;i++) {
+                    ctx.fillRect(ox+5+i*4, oy+12, 2, 4);
+                }
+                ctx.fillStyle = '#6b4c2c';
+                ctx.fillRect(ox+10, oy+4, 3, 8);
+                ctx.shadowBlur = 0;
+            }
+            
+            // 食物
+            const fx = food.x * CELL_SIZE, fy = food.y * CELL_SIZE;
+            const grad = ctx.createRadialGradient(fx+6, fy+6, 3, fx+10, fy+10, 12);
+            grad.addColorStop(0, '#ff5e5e');
+            grad.addColorStop(1, '#c72a2a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(fx + CELL_SIZE/2, fy + CELL_SIZE/2, CELL_SIZE/2 - 2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#ffdd99';
+            ctx.beginPath();
+            ctx.arc(fx+8, fy+8, 2.5, 0, Math.PI*2);
+            ctx.fill();
+            
+            // 炸弹
+            for(let b of bombs) {
+                const bx = b.x * CELL_SIZE, by = b.y * CELL_SIZE;
+                ctx.fillStyle = '#2d2d2d';
+                ctx.shadowBlur = 3;
+                ctx.beginPath();
+                ctx.arc(bx+CELL_SIZE/2, by+CELL_SIZE/2, CELL_SIZE/2-2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#a1221a';
+                ctx.beginPath();
+                ctx.arc(bx+6, by+8, 2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(bx+14, by+8, 2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#e0e0e0';
+                ctx.font = `bold ${CELL_SIZE-6}px monospace`;
+                ctx.fillText("💣", bx+5, by+16);
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(bx+18, by+4);
+                ctx.lineTo(bx+22, by+2);
+                ctx.lineTo(bx+19, by+7);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+            
+            // 蛇
+            for(let i=0; i<snake.length; i++) {
+                const seg = snake[i];
+                const segX = seg.x*CELL_SIZE, segY = seg.y*CELL_SIZE;
+                const isHead = (i===0);
+                ctx.shadowBlur = 2;
+                ctx.beginPath();
+                ctx.roundRect(segX+1, segY+1, CELL_SIZE-2, CELL_SIZE-2, 5);
+                const gradBody = ctx.createLinearGradient(segX, segY, segX+CELL_SIZE, segY+CELL_SIZE);
+                if(isHead) {
+                    gradBody.addColorStop(0, '#6fdb3c');
+                    gradBody.addColorStop(1, '#2f9e2f');
+                } else {
+                    gradBody.addColorStop(0, '#4ba84b');
+                    gradBody.addColorStop(1, '#1f7a1f');
+                }
+                ctx.fillStyle = gradBody;
+                ctx.fill();
+                ctx.fillStyle = '#b6ff9e';
+                ctx.beginPath();
+                ctx.roundRect(segX+3, segY+2, 4, 4, 2);
+                ctx.fill();
+                if(isHead) {
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(segX+14, segY+7, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(segX+6, segY+7, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.fillStyle = '#010101';
+                    ctx.beginPath();
+                    ctx.arc(segX+14.5, segY+6.5, 1.5, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(segX+6.5, segY+6.5, 1.5, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+            ctx.shadowBlur = 0;
+            
+            // 覆盖层
+            if(!isGameRunning) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.textAlign = 'center';
+                if(isGameOverFlag && isWinFlag) {
+                    ctx.font = 'bold 22px "Courier New", monospace';
+                    ctx.fillStyle = '#f9f2b0';
+                    ctx.fillText('✨ 完美通关 ✨', canvas.width/2, canvas.height/2 - 30);
+                    ctx.font = '14px monospace';
+                    ctx.fillStyle = '#d2ffb0';
+                    ctx.fillText('点击「开始游戏」继续挑战', canvas.width/2, canvas.height/2 + 15);
+                } 
+                else if(isGameOverFlag && !isWinFlag) {
+                    ctx.font = 'bold 20px "Segoe UI", monospace';
+                    ctx.fillStyle = '#ffb87c';
+                    ctx.fillText('💀 GAME OVER 💀', canvas.width/2, canvas.height/2 - 40);
+                    ctx.font = 'bold 16px "Courier New"';
+                    ctx.fillStyle = '#ffec9f';
+                    ctx.fillText(currentTaunt, canvas.width/2, canvas.height/2);
+                    ctx.font = '12px monospace';
+                    ctx.fillStyle = '#c0ffa0';
+                    ctx.fillText('点击「开始游戏」新的一局', canvas.width/2, canvas.height/2 + 45);
+                }
+                else {
+                    ctx.font = 'bold 18px "Segoe UI", monospace';
+                    ctx.fillStyle = '#caffb0';
+                    ctx.fillText('🐍 穿墙模式 点击「开始游戏」', canvas.width/2, canvas.height/2 - 20);
+                    ctx.font = '13px monospace';
+                    ctx.fillStyle = '#a8e68c';
+                    ctx.fillText('障碍物不可穿越，小心躲避', canvas.width/2, canvas.height/2 + 20);
+                }
+                ctx.textAlign = 'left';
+            }
+            ctx.font = 'bold 11px monospace';
+            ctx.fillStyle = '#c0f0a0';
+            ctx.fillText(`🐍 长度:${snake.length}  💣:${bombs.length}  🧱:${obstacles.size}`, 12, 22);
+        }
+        
+        // 键盘事件
+        function handleKeydown(e) {
+            const key = e.key;
+            if(key === 'ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight') e.preventDefault();
+            if(key === 'r' || key === 'R') {
+                e.preventDefault();
+                fullResetToIdle();
+                return;
+            }
+            if(key === ' ' || key === 'Space') {
+                e.preventDefault();
+                startGame();
+                return;
+            }
+            if(!isGameRunning) return;
+            let newDir = null;
+            if(key === 'ArrowUp') newDir='UP';
+            else if(key === 'ArrowDown') newDir='DOWN';
+            else if(key === 'ArrowLeft') newDir='LEFT';
+            else if(key === 'ArrowRight') newDir='RIGHT';
+            if(newDir && dirMap[newDir].opposite !== direction) {
+                nextDirection = newDir;
+            }
+        }
+        
+        function bindEvents() {
+            window.addEventListener('keydown', handleKeydown);
+            restartBtn.addEventListener('click', () => fullResetToIdle());
+            startBtn.addEventListener('click', () => startGame());
+            diffBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const diff = btn.getAttribute('data-diff');
+                    if(diff === 'medium' && !unlocks.medium) return;
+                    if(diff === 'hard' && !unlocks.hard) return;
+                    onDifficultyChange(diff);
+                });
+            });
+        }
+        
+        if(!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (w < 2*r) r = w/2;
+                if (h < 2*r) r = h/2;
+                this.moveTo(x+r, y);
+                this.lineTo(x+w-r, y);
+                this.quadraticCurveTo(x+w, y, x+w, y+r);
+                this.lineTo(x+w, y+h-r);
+                this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+                this.lineTo(x+r, y+h);
+                this.quadraticCurveTo(x, y+h, x, y+h-r);
+                this.lineTo(x, y+r);
+                this.quadraticCurveTo(x, y, x+r, y);
+                return this;
+            };
+        }
+        
+        window.addEventListener('load', () => {
+            loadUnlockStatus();
+            currentDifficulty = 'easy';
+            updateDifficultyButtonsUI();
+            generateObstaclesForDifficulty(currentDifficulty);
+            fullResetToIdle();
+            bindEvents();
+        });
+        
+        window.addEventListener('beforeunload', () => {
+            if(gameInterval) clearInterval(gameInterval);
+        });
+    })();
+</script>
+</body>
+</html>
