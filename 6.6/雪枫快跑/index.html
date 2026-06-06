@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>雪枫跑酷</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  </head>
+  <body>
+    <div class="rotate-hint" id="rotateHint">
+      <div class="rotate-card">
+        <div class="rotate-title">请横屏游玩</div>
+        <div class="rotate-desc">把手机旋转到横屏，体验更好</div>
+        <button class="rotate-btn" id="fullscreenBtn" type="button">进入全屏（可自动锁横屏）</button>
+      </div>
+    </div>
+    <div id="app">
+      <div id="game"></div>
+      <div class="tips">
+        电脑：空格/↑ 跳跃（二段跳），↓ 下滑/铲<br />
+        手机：点“跳”跳跃（二段跳），点“滑”下滑/铲（建议横屏/全屏）
+      </div>
+    </div>
+    <script src="./game.js"></script>
+    <script>
+      (function () {
+        const btn = document.getElementById("fullscreenBtn");
+        const hint = document.getElementById("rotateHint");
+
+        function isPortrait() {
+          return window.matchMedia && window.matchMedia("(orientation: portrait)").matches;
+        }
+
+        function refreshHint() {
+          // 仅在手机竖屏时提示；桌面端不显示
+          const isCoarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+          const show = isCoarse && isPortrait();
+          hint.style.display = show ? "flex" : "none";
+        }
+
+        async function enterFullscreenAndLockLandscape() {
+          try {
+            // Fullscreen 需要用户手势触发
+            if (document.documentElement.requestFullscreen) {
+              await document.documentElement.requestFullscreen();
+            }
+          } catch (e) {
+            // 忽略
+          }
+          try {
+            if (screen.orientation && screen.orientation.lock) {
+              await screen.orientation.lock("landscape");
+            }
+          } catch (e) {
+            // 某些浏览器不允许锁定方向，忽略即可
+          }
+        }
+
+        if (btn) btn.addEventListener("click", enterFullscreenAndLockLandscape);
+        window.addEventListener("resize", refreshHint);
+        window.addEventListener("orientationchange", refreshHint);
+        refreshHint();
+      })();
+    </script>
+  </body>
+</html>

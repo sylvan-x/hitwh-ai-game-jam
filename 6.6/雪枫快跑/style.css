@@ -1,0 +1,82 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #0b1220;
+  color: #e8eefc;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+}
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+#game {
+  width: min(100vw, 960px);
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  background: #0b1220;
+}
+
+.tips {
+  width: min(100vw, 960px);
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+/* 手机竖屏提示：建议横屏/全屏 */
+.rotate-hint {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 18, 32, 0.86);
+  z-index: 9999;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.rotate-card {
+  width: min(92vw, 420px);
+  border-radius: 14px;
+  padding: 18px 16px;
+  background: rgba(33, 48, 88, 0.95);
+  border: 1px solid rgba(92, 120, 255, 0.7);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.rotate-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.rotate-desc {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.rotate-btn {
+  appearance: none;
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #5c78ff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
